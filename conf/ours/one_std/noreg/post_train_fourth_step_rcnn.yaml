@@ -1,0 +1,33 @@
+MODEL:
+  META_ARCHITECTURE: "Detector"
+  PROPOSAL_GENERATOR:
+    NAME: MyRPN
+  ROI_HEADS:
+    NUM_CLASSES: 20
+    NAME: MyRes5ROIHeads
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/ours/one_std/noreg/post_train_rcnn" # path to store the result
+DATASETS:
+  TEST: ("VOC2007_all",)
+OURS:
+  MODE: "ours"
+  POST_TRAIN_RCNN: True
+  MODELS:
+    RPN:
+      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step3/train/model_final.pth"
+      FG_PERCENTILE: 4.54 #2.68 0STD - 4.54 1STD
+      BG_PERCENTILE: -8.57 #-5.68 0STD - -8.57 1STD
+    RCNN:
+      CLS_LOSS: "ce"
+      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step4/train/model_final.pth"
+      POST_TRAIN_DATASET_NAME: "VOC2007_all"
+  DATASETS:
+    ROOT_DIR: "/home/mtarantino/thesis/oursowod/data"
+    INFO:
+      NAME: "VOC2007"
+      YEAR: 2007
+      SUBDIR: "pascal-voc/VOC2007/trainval"
+      SPLIT: "trainval"
+  WRITERS:
+    PERIOD: 20
+  CHECKPOINT_DIR_RCNN : "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step4/train" # path to store the checkpoint
+  CHECKPOINT_DIR_RPN: "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step3/train"

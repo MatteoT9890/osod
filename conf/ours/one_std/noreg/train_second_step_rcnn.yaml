@@ -1,0 +1,39 @@
+MODEL:
+  WEIGHTS: "detectron2://ImageNetPretrained/MSRA/R-50.pkl"
+  META_ARCHITECTURE: "Detector"
+  PROPOSAL_GENERATOR:
+    NAME: MyRPN
+  ROI_HEADS:
+    NUM_CLASSES: 20
+    NAME: MyRes5ROIHeads
+VIS_PERIOD: 0
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/ours/one_std/noreg/step2/train" # path to store the result
+DATASETS:
+  TRAIN: ("VOC2007_all",)
+SOLVER:
+  MAX_ITER: 40000
+  STEPS: (30000, )
+  CHECKPOINT_PERIOD: 5000
+OURS:
+  STEP: 2
+  MODE: "ours"
+  UNKNOWN_REGRESSION: False
+  MODELS:
+    RPN:
+      META_ARCHITECTURE: "RegionProposalNetwork"
+      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step1/train/model_final.pth"
+      FG_PERCENTILE: 5.88 #2.93 0STD - 5.88 1STD
+      BG_PERCENTILE: -13.91 #-9.66 0STD - -13.91 1STD
+    RCNN:
+      CLS_LOSS: "ce"
+  DATASETS:
+    ROOT_DIR: "/home/mtarantino/thesis/oursowod/data"
+    INFO:
+      NAME: "VOC2007"
+      YEAR: 2007
+      SUBDIR: "pascal-voc/VOC2007/trainval"
+      SPLIT: "trainval"
+  WRITERS:
+    PERIOD: 20
+  CHECKPOINT_DIR : "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step2/train" # path to store the checkpoint
+  CHECKPOINT_DIR_RPN: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step1/train"
