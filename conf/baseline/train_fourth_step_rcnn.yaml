@@ -1,0 +1,34 @@
+MODEL:
+  WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step2/train/model_final.pth"
+  META_ARCHITECTURE: "Detector"
+  PROPOSAL_GENERATOR:
+    NAME: MyRPN
+  ROI_HEADS:
+    NUM_CLASSES: 20
+    NAME: MyRes5ROIHeads
+VIS_PERIOD: 500
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/baseline/step4/train" # path to store the result
+DATASETS:
+  TRAIN: ("VOC2007_all",)
+SOLVER:
+  MAX_ITER: 10000
+  STEPS: (7500, )
+OURS:
+  STEP: 4
+  FREEZE_AT: 5
+  MODE: "baseline"
+  MODELS:
+    RPN:
+      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step3/train/model_final.pth"
+      FG_PERCENTILE: 2.68 #2.66 0STD - 1.88 1STD
+  DATASETS:
+    ROOT_DIR: "/home/mtarantino/thesis/oursowod/data"
+    INFO:
+      NAME: "VOC2007"
+      YEAR: 2007
+      SUBDIR: "pascal-voc/VOC2007/trainval"
+      SPLIT: "trainval"
+  WRITERS:
+    PERIOD: 20
+  CHECKPOINT_DIR : "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step4/train" # path to store the checkpoint
+  CHECKPOINT_DIR_RPN: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step3/train"

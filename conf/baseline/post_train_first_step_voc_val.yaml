@@ -1,0 +1,28 @@
+MODEL:
+  WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step1/train/model_final.pth"
+  META_ARCHITECTURE: "RegionProposalNetwork"
+  PROPOSAL_GENERATOR:
+    NAME: MyRPN
+  ROI_HEADS:
+    NUM_CLASSES: 20
+    NAME: MyRes5ROIHeads
+VIS_PERIOD: 0
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/baseline/step1/post_train" # path to store the result
+DATALOADER:
+  SAMPLER_TRAIN: "InferenceSampler"
+  ASPECT_RATIO_GROUPING: False
+DATASETS:
+  TRAIN: ("VOC2007_all",)
+OURS:
+  MODE: "baseline"
+  POST_TRAINING: True
+  DATASETS:
+    ROOT_DIR: "/home/mtarantino/thesis/oursowod/data"
+    INFO:
+      NAME: "VOC2007"
+      YEAR: 2007
+      SUBDIR: "pascal-voc/VOC2007/trainval"
+      SPLIT: "val"
+  WRITERS:
+    PERIOD: 0
+  CHECKPOINT_DIR : "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step1/train" # path to store the checkpoint
