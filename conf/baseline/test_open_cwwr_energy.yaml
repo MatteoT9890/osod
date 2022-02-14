@@ -1,0 +1,37 @@
+MODEL:
+  META_ARCHITECTURE: "Detector"
+  PROPOSAL_GENERATOR:
+    NAME: MyRPN
+  ROI_HEADS:
+    NUM_CLASSES: 20
+    NAME: MyRes5ROIHeads
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/energy/test_open_cwwr" # path to store the result
+OURS:
+  MODE: "baseline"
+  USE_MSP: False
+  USE_ENERGY: True
+  TEMPER: 1
+  MODELS:
+    RPN:
+      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step3/train/model_final.pth"
+    RCNN:
+      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step4/train/model_final.pth"
+  TEST_DATASETS_REGISTERED_NAMES: ("VOC2007_all", "COCO2017")
+  TEST_DATASETS_NAMES: ("VOC2007","COCO2017")
+  TEST_DATASETS:
+    - ROOT_DIR: "/home/mtarantino/thesis/oursowod/data"
+      INFO:
+        NAME: "VOC2007"
+        YEAR: 2007
+        SUBDIR: "pascal-voc/VOC2007"
+        SPLIT: "test"
+    - ROOT_DIR: "/home/mtarantino/thesis/oursowod/data"
+      INFO:
+        NAME: "COCO2017"
+        YEAR: 2017
+        SUBDIR: "coco"
+        SPLIT: "train"
+  WRITERS:
+    PERIOD: 20
+  CHECKPOINT_DIR_RCNN : "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step4/train" # path to store the checkpoint
+  CHECKPOINT_DIR_RPN: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step3/train"
