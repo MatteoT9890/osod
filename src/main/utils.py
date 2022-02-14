@@ -16,4 +16,3 @@ def update_relative_path(cfg):
                             cfg[entry][idx][key] = cfg[entry][idx][key].replace('/home/mtarantino/thesis/oursowod/', f"{ROOT_DIR}")
         elif isinstance(cfg[entry], str) and '/home/mtarantino/thesis/oursowod/' in cfg[entry]:
             cfg[entry] = cfg[entry].replace('/home/mtarantino/thesis/oursowod/', f"{ROOT_DIR}")
-
