@@ -1,5 +1,5 @@
 #!/bin/bash
-PYTHONPATH='/home/dariof/osod'
+# PYTHONPATH='/home/dariof/osod'
 
 bash $PYTHONPATH/start/setup.sh
   ## TODO: Automate the reading of RPN post-train metrics for training steps 2,3,4 with our strategy. Up to now it
