@@ -31,7 +31,7 @@ OURS:
     INFO:
       NAME: "VOC2007"
       YEAR: 2007
-      SUBDIR: "pascal-voc/VOC2007/trainval"
+      SUBDIR: "pascal-voc/VOC2007"
       SPLIT: "trainval"
   WRITERS:
     PERIOD: 20

@@ -459,7 +459,7 @@ def eval(detpath, class_name, class_images_gt: ClassImagesGT, class_images_gt_un
 
         num_tp = np.sum(tp)
         num_fp = np.sum(fp)
-        recall = num_tp / class_images_gt.npos
+        recall = num_tp / class_images_gt.npos # recall: tp per class c / immagini di class c (vale anche per unk)
         precision = num_tp / max((num_tp + num_fp), np.finfo(np.float64).eps)
         is_unk_cum = np.cumsum(is_unk)
     if mode == "open" and class_name == unk_cls_name:

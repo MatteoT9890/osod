@@ -6,6 +6,7 @@ from src.post_train.post_trainer import PostRPNTrainer
 from src.data.handler import DatasetHandler
 from detectron2.engine import default_argument_parser, default_setup, launch
 from src.models.architectures import RegionProposalNetwork
+from utils import *
 
 
 def setup(arguments):
@@ -15,6 +16,7 @@ def setup(arguments):
     cfg = get_cfg()
     cfg.merge_from_file(arguments.config_file)
     cfg.merge_from_list(arguments.opts)
+    update_relative_path(cfg)
     cfg.freeze()
     default_setup(cfg, arguments)
     return cfg

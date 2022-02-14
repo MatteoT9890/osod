@@ -427,6 +427,8 @@ class MyFastRCNNOutputLayers(nn.Module):
             mode: str,
             unknown_regression: bool,
             use_msp: bool,
+            use_energy: bool,
+            temper: int,
             cls_loss: str,
             fg_percentile: float,
             std_percentile: int = -1,
@@ -495,6 +497,8 @@ class MyFastRCNNOutputLayers(nn.Module):
         self.indices_swap_bk_fgunk[self.num_classes] = self.num_classes + 1
         self.indices_swap_bk_fgunk[self.num_classes + 1] = self.num_classes
         self.use_msp = use_msp
+        self.use_energy = use_energy
+        self.temper = temper
         self.cls_loss = ClsLoss(cls_loss, self.num_ll_classes)
         self.fg_percentile = fg_percentile
         if self.mode == "ours" and not self.use_msp and self.is_test:
@@ -528,6 +532,8 @@ class MyFastRCNNOutputLayers(nn.Module):
             "mode": mode,
             "unknown_regression": cfg.OURS.UNKNOWN_REGRESSION,
             "use_msp": cfg.OURS.USE_MSP,
+            "use_energy": cfg.OURS.USE_ENERGY,
+            "temper": cfg.OURS.TEMPER,
             "cls_loss": cfg.OURS.MODELS.RCNN.CLS_LOSS,
             "fg_percentile": cfg.OURS.MODELS.RPN.FG_PERCENTILE,
             "is_test": is_test,
@@ -723,6 +729,7 @@ class MyFastRCNNOutputLayers(nn.Module):
                 A list of Tensors of predicted class probabilities for each image.
                 Element i has shape (Ri, K + 1), where Ri is the number of proposals for image i.
         """
+        # fixme here where to compute unk probabilities
         scores, _ = predictions
         num_inst_per_image = [len(p) for p in proposals]
 
@@ -736,9 +743,17 @@ class MyFastRCNNOutputLayers(nn.Module):
             else:
                 probs = scores
         else:
-            probs = F.softmax(scores, dim=-1)
-            msp = torch.max(probs, dim=1).values
-            probs = torch.cat((probs, msp.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
+            if self.use_msp:
+                probs = F.softmax(scores, dim=-1)
+                msp = torch.max(probs, dim=1).values
+                probs = torch.cat((probs, msp.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
+            elif self.use_energy:
+                energy = self.temper * torch.logsumexp(scores / self.temper, dim=1)
+                # just for code simplicity, none of the other column are used
+                probs = F.softmax(scores, dim=-1)
+                probs = torch.cat((probs, energy.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
+            else:
+                raise NotImplementedError()
 
         return probs.split(num_inst_per_image, dim=0)
 
@@ -772,6 +787,7 @@ class MyFastRCNNOutputLayers(nn.Module):
 
         if self.mode == "ours" and self.use_msp:
             ## In this case the anomaly score is the last column itself, we only compute the mask for removing bkg detections.
+            #fixme, perché con msp dobbiamo togliere gli errori sul bkg?
             mask_bkg = scores[:, self.num_classes] != scores[:, -1]
             scores[:, -1] = 1 - scores[:, -1]
         elif self.mode == "ours":
@@ -802,26 +818,29 @@ class MyFastRCNNOutputLayers(nn.Module):
             else:
                 scores = torch.sigmoid(scores)
             scores[unknown_indices, :-1] = torch.zeros((len(unknown_indices), self.num_classes + 1)).to(self.device)
-        elif self.mode == "baseline" and not self.use_msp:
+        elif self.mode == "baseline" and not self.use_msp and not self.use_energy:
             ## The first 21 columns contains softmax probability of 20 classes + bkg.
             ## The last column contains msp
             mask_bkg = scores[:, self.num_classes] != scores[:, -1]
             scores = scores[:, :-2]
             ##Remove last 4 coordinates indicating proposal coordinates, since no unknown exists hence are unuseful.
             boxes = boxes[:, :-4]
+        elif self.mode == 'baseline' and not self.use_msp and self.use_energy:
+            pass
         elif self.mode == "baseline":
             ## The first 21 columns contains softmax probability of 20 classes + bkg.
             ## The last column contains msp
-            mask_bkg = scores[:, self.num_classes] != scores[:, -1]
+            mask_bkg = scores[:, self.num_classes] != scores[:, -1] # Keep all rows on which background is not the maximum score
             scores[:, -1] = 1 - scores[:, -1]
         else:
             raise Exception("Training mode not recognized: {}".format(self.mode))
 
         ## Keep all rows on which background is not the maximum score
-        scores = scores[mask_bkg]
+        # if not self.use_energy:
+        #     scores = scores[mask_bkg]
 
         # Swap the bkg and fg unk column, then remove bkg column in order to work with boxes
-        if not (self.mode == "baseline" and not self.use_msp):
+        if not (self.mode == "baseline" and not self.use_msp and not self.use_energy):
             scores = swap(scores, dim=1, idx=self.indices_swap_bk_fgunk)
             scores = scores[:, :-1]
 
@@ -831,7 +850,8 @@ class MyFastRCNNOutputLayers(nn.Module):
         boxes.clip(image_shape)
         boxes = boxes.tensor.view(-1, num_bbox_reg_classes, 4)  # R x ( C + 1 ) x 4
         ## Remove all the rows on which background is the prediction
-        boxes = boxes[mask_bkg]
+        # if not self.use_energy:
+        #     boxes = boxes[mask_bkg]
         filter_mask = scores > score_thresh  # R x K
 
         # R' x 2. First column contains indices of the R predictions;

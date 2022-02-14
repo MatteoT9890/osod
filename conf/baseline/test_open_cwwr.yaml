@@ -5,7 +5,7 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/baseline/test_open" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/msp_no_filter/test_open" # path to store the result
 OURS:
   MODE: "baseline"
   USE_MSP: True
@@ -21,7 +21,7 @@ OURS:
       INFO:
         NAME: "VOC2007"
         YEAR: 2007
-        SUBDIR: "pascal-voc/VOC2007/test"
+        SUBDIR: "pascal-voc/VOC2007"
         SPLIT: "test"
     - ROOT_DIR: "/home/mtarantino/thesis/oursowod/data"
       INFO:

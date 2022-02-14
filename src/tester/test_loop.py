@@ -7,7 +7,8 @@ from detectron2.utils.events import EventStorage
 from detectron2.utils.logger import _log_api_usage
 
 from src.tester.hooks import HookTestBase
-
+import torch
+import tqdm
 
 class TestBase:
     """
@@ -70,10 +71,19 @@ class TestBase:
                 self.before_test()
                 with ExitStack() as stack:
                     self.apply_stack_context(stack)
+
+                    tq = tqdm.tqdm(total=max_iter)
+
                     for self.iter in range(start_iter, max_iter):
                         self.before_step()
                         self.run_step()
                         self.after_step()
+
+                        if tq is not None:
+                            tq.update(1)
+
+                    if tq is not None:
+                        tq.close()
                     # self.iter == max_iter can be used by `after_train` to
                     # tell whether the training successfully finished or failed
                     # due to exceptions.

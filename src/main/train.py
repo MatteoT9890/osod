@@ -1,4 +1,5 @@
 import torch
+import detectron2
 from detectron2.config import get_cfg  # import default model configuration: config/defaults.py, config/paths_catalog.py, yaml file
 from detectron2.modeling.meta_arch import build_model
 from src.trainer.trainer import RPNTrainer, DetectorTrainer
@@ -6,6 +7,7 @@ from src.data.handler import DatasetHandler
 from detectron2.engine import default_argument_parser, default_setup, launch
 from src.models.architectures import RegionProposalNetwork, FastRCNN, Detector
 from src.models.components.roi_heads import MyRes5ROIHeads
+from utils import *
 
 def setup(arguments):
     """
@@ -14,6 +16,7 @@ def setup(arguments):
     cfg = get_cfg()
     cfg.merge_from_file(arguments.config_file)
     cfg.merge_from_list(arguments.opts)
+    update_relative_path(cfg)
     cfg.freeze()
     default_setup(cfg, arguments)
     return cfg

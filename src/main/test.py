@@ -9,6 +9,7 @@ from detectron2.engine import create_ddp_model
 from detectron2.engine import default_argument_parser, default_setup, launch
 from src.models.architectures import Detector
 from src.models.components.roi_heads import MyRes5ROIHeads
+from utils import *
 
 
 def setup(arguments):
@@ -18,6 +19,7 @@ def setup(arguments):
     cfg = get_cfg()
     cfg.merge_from_file(arguments.config_file)
     cfg.merge_from_list(arguments.opts)
+    update_relative_path(cfg)
     cfg.freeze()
     default_setup(cfg, arguments)
     return cfg

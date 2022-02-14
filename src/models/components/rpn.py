@@ -409,14 +409,16 @@ class MyRPN(nn.Module):
         """
         features = [features[f] for f in self.in_features]
         anchors = self.anchor_generator(features)
-
+        # rpn head progetta le feat in un layer intermedio e poi produce:
+        # - n_score scores (1 score per ogni ancora che avrà valore object vs non object) b x n_ancore x H x W
+        # - n_coord coordinate (4 coordinate per ogni ancora) b x 4xnum_ancore x H x W
         pred_objectness_logits, pred_anchor_deltas = self.rpn_head(features)
         # Transpose the Hi*Wi*A dimension to the middle:
         pred_objectness_logits = [
             # (N, A, Hi, Wi) -> (N, Hi, Wi, A) -> (N, Hi*Wi*A)
             score.permute(0, 2, 3, 1).flatten(1)
             for score in pred_objectness_logits
-        ]
+        ] # proietta tutto in batch x cumulativo
 
         pred_anchor_deltas = [
             # (N, A*B, Hi, Wi) -> (N, A, B, Hi, Wi) -> (N, Hi, Wi, A, B) -> (N, Hi*Wi*A, B)
@@ -424,7 +426,7 @@ class MyRPN(nn.Module):
                 .permute(0, 3, 4, 1, 2)
                 .flatten(1, -2)
             for x in pred_anchor_deltas
-        ]
+        ]  # proietta tutto in batch x cumulativo x 4 (coordinate)
 
         if self.post_training:
             gt_labels = self.label_anchors(anchors, gt_instances)
@@ -438,7 +440,7 @@ class MyRPN(nn.Module):
             )
         else:
             losses = {}
-
+        # combina le ancore con l'objectness, fa NMS, toglie proposal errate. Risultato: num_final_proposal x 4 coordinate + relativa objectness
         proposals = self.predict_proposals(
             anchors, pred_objectness_logits, pred_anchor_deltas, images.image_sizes
         )
@@ -464,7 +466,7 @@ class MyRPN(nn.Module):
         # This approach ignores the derivative w.r.t. the proposal boxes’ coordinates that
         # are also network responses.
         with torch.no_grad():
-            pred_proposals = self._decode_proposals(anchors, pred_anchor_deltas)
+            pred_proposals = self._decode_proposals(anchors, pred_anchor_deltas)  # b x cumulativo x 4, combina l'objectness score di ogni feat con le coordinate
             return find_top_rpn_proposals(
                 pred_proposals,
                 pred_objectness_logits,
@@ -474,7 +476,7 @@ class MyRPN(nn.Module):
                 self.post_nms_topk[self.training],
                 self.min_box_size,
                 self.training,
-            )
+            ) #fa NMS e scarta proposal. Risultato: numero finale di proposals x 4 coordinate + annessa objectness score
 
     def _decode_proposals(self, anchors: List[Boxes], pred_anchor_deltas: List[torch.Tensor]):
         """

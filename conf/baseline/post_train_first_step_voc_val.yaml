@@ -21,8 +21,8 @@ OURS:
     INFO:
       NAME: "VOC2007"
       YEAR: 2007
-      SUBDIR: "pascal-voc/VOC2007/trainval"
-      SPLIT: "val"
+      SUBDIR: "pascal-voc/VOC2007/test"
+      SPLIT: "test"
   WRITERS:
     PERIOD: 0
   CHECKPOINT_DIR : "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step1/train" # path to store the checkpoint

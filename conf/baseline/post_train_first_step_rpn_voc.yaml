@@ -21,7 +21,7 @@ OURS:
     INFO:
       NAME: "VOC2007"
       YEAR: 2007
-      SUBDIR: "pascal-voc/VOC2007/test"
+      SUBDIR: "pascal-voc/VOC2007"
       SPLIT: "test"
   WRITERS:
     PERIOD: 0

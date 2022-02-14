@@ -329,11 +329,11 @@ class MyRes5ROIHeads(ROIHeads):
             assert targets
             proposals = self.label_and_sample_proposals(proposals, targets)
         del targets
-
+        # estrae le proposal (boxes) dalle istenze proposals (contengono boxes + objectness)
         proposal_boxes = [x.proposal_boxes for x in proposals]
         box_features = self._shared_roi_transform(
             [features[f] for f in self.in_features], proposal_boxes
-        )
+        ) # convolve features e proposal -> n_boxes x C x H x W -> per ogni feat C, su H e W ho le n_boxes applicate. Le conv fanno emergere solo le feat dei box che verranno poi classificate
         predictions = self.box_predictor(box_features.mean(dim=[2, 3]))
 
         if self.post_train_rcnn:
@@ -356,7 +356,7 @@ class MyRes5ROIHeads(ROIHeads):
                 losses.update(self.mask_head(mask_features, proposals))
             return [], losses
         else:
-            pred_instances, _ = self.box_predictor.inference(predictions, proposals)
+            pred_instances, _ = self.box_predictor.inference(predictions, proposals) # tira fuori le bbox predette e la relativa classe
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
             return pred_instances, {}
 
