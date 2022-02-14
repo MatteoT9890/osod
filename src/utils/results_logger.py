@@ -137,3 +137,4 @@ class Logger:
                 f"<td>{a_ose}</td></tr>"
         text += "</table>"
         self.writer.add_text('CUMULATIVE', text, 0)
+
