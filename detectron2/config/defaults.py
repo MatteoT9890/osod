@@ -602,12 +602,13 @@ _C.OURS.POST_TRAIN_RCNN = False
 # - baseline
 # - ours
 _C.OURS.MODE = "ours"
+_C.OURS.DEBUG = False
 _C.OURS.IS_TEST = False
 _C.OURS.UNKNOWN_REGRESSION = False
 _C.OURS.TRAIN_RCNN = False
 _C.OURS.USE_MSP = False
 _C.OURS.USE_ENERGY = False
-_C.OURS.USE_TEMPER = False
+_C.OURS.TEMPER = 0
 _C.OURS.TEST_ONLY_WIC = False
 _C.OURS.TEST_LOAD_PREDICTIONS = False
 # Ours datasets

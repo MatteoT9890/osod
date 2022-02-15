@@ -5,7 +5,7 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/ours/zero_std/noreg/test_open_fg" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/ours_no_filter_fg/zero_std/noreg/test_open_fg" # path to store the result
 OURS:
   REJECTION:
     FG: True

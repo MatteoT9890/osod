@@ -85,6 +85,8 @@ class DatasetHandler:
     @classmethod
     def register_test_datasets(cls, cfg):
         ours_datasets: List = cfg.OURS.TEST_DATASETS
+        debug = cfg.OURS.DEBUG
+
         for dataset_name in cfg.OURS.TEST_DATASETS_NAMES:
             test_dataset = cls.search_dataset_for_name(ours_datasets, dataset_name)
             if "VOC" in dataset_name:
@@ -94,7 +96,8 @@ class DatasetHandler:
                     dirname="/".join([test_dataset['ROOT_DIR'], test_dataset['INFO']['SUBDIR']]),
                     split=test_dataset['INFO']['SPLIT'],
                     year=test_dataset['INFO']['YEAR'],
-                    data_splits=data_splits
+                    data_splits=data_splits,
+                    debug=debug
                 )
 
             elif "COCO" in dataset_name:
@@ -103,7 +106,8 @@ class DatasetHandler:
                     dirname="/".join([test_dataset['ROOT_DIR'], test_dataset['INFO']['SUBDIR']]),
                     dataset_name=dataset_name,
                     unk_id=cfg.MODEL.ROI_HEADS.NUM_CLASSES + 1,
-                    filename= filename if filename is not None else "WR1_Mixed_Unknowns.json"
+                    filename= filename if filename is not None else "WR1_Mixed_Unknowns.json",
+                    debug=debug
                 )
 
     def get_known_split(self) -> OWDataHandler:

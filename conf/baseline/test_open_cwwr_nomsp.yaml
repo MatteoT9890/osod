@@ -5,8 +5,9 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/baseline/test_open_cwwr_nomsp" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/no_msp_no_filter/test_open_cwwr_nomsp" # path to store the result
 OURS:
+  DEBUG: True
   MODE: "baseline"
   USE_MSP: False
   MODELS:

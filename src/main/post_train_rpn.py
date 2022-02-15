@@ -16,6 +16,8 @@ def setup(arguments):
     cfg = get_cfg()
     cfg.merge_from_file(arguments.config_file)
     cfg.merge_from_list(arguments.opts)
+    if cfg.OURS.DEBUG:
+        cfg.DATALOADER.NUM_WORKERS = 0
     update_relative_path(cfg)
     cfg.freeze()
     default_setup(cfg, arguments)

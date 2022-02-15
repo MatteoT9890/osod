@@ -24,7 +24,7 @@ class DataSplits:
     KNOWN_AND_UNKNOWN: str = "known_and_unknown_class"
 
 
-def load_known_and_unknown_instances(dirname: str, split: str, known_class_names: Union[List[str], Tuple[str, ...]]):
+def load_known_and_unknown_instances(dirname: str, split: str, known_class_names: Union[List[str], Tuple[str, ...]], debug=False):
     """
     Load object detection annotations to Detectron2 format.
 
@@ -78,6 +78,10 @@ def load_known_and_unknown_instances(dirname: str, split: str, known_class_names
             )
         r["annotations"] = instances
         dicts.append(r)
+
+    if debug:
+        dicts = dicts[:10]
+
     return dicts
 
 
@@ -140,7 +144,7 @@ def load_unknown_instances(dirname: str, split: str, known_class_names: Union[Li
     return dicts
 
 
-def load_all_instances(dirname: str, split: str, class_names: Union[List[str], Tuple[str, ...]]):
+def load_all_instances(dirname: str, split: str, class_names: Union[List[str], Tuple[str, ...]], debug=False):
     """
     Load object detection annotations to Detectron2 format.
 
@@ -190,10 +194,14 @@ def load_all_instances(dirname: str, split: str, class_names: Union[List[str], T
             )
         r["annotations"] = instances
         dicts.append(r)
+
+    if debug:
+        dicts=dicts[:10]
+
     return dicts
 
 
-def load_subset_instances(dirname: str, split: str, class_names: Union[List[str], Tuple[str, ...]]):
+def load_subset_instances(dirname: str, split: str, class_names: Union[List[str], Tuple[str, ...]], debug=False):
     """
     Load object detection annotations to Detectron2 format.
 
@@ -249,25 +257,26 @@ def load_subset_instances(dirname: str, split: str, class_names: Union[List[str]
         if at_least_one:
             r["annotations"] = instances
             dicts.append(r)
-
+    if debug:
+        dicts=dicts[:10]
     return dicts
 
 
-def voc_register(dirname, split, year, data_splits):
+def voc_register(dirname, split, year, data_splits, debug=False):
     all_class_split = data_splits[DataSplits.ALL]
     known_class_split = data_splits[DataSplits.KNOWN]
     unknown_class_split = data_splits[DataSplits.UNKNOWN]
     known_and_unknown_class_split = data_splits[DataSplits.KNOWN_AND_UNKNOWN]
 
     DatasetCatalog.register(all_class_split.dataset_name,
-                            lambda: load_all_instances(dirname, split, all_class_split.class_names))
+                            lambda: load_all_instances(dirname, split, all_class_split.class_names, debug))
     MetadataCatalog.get(all_class_split.dataset_name).set(
         thing_classes=list(all_class_split.class_names), dirname=dirname, year=year, split=split,
         class_ids=list(range(len(list(all_class_split.class_names))))
     )
 
     DatasetCatalog.register(known_class_split.dataset_name,
-                            lambda: load_subset_instances(dirname, split, known_class_split.class_names)),
+                            lambda: load_subset_instances(dirname, split, known_class_split.class_names, debug)),
     MetadataCatalog.get(known_class_split.dataset_name).set(
         thing_classes=list(known_class_split.class_names), dirname=dirname, year=year, split=split,
         class_ids=list(range(len(list(known_class_split.class_names))))
@@ -275,7 +284,7 @@ def voc_register(dirname, split, year, data_splits):
     )
 
     DatasetCatalog.register(unknown_class_split.dataset_name,
-                            lambda: load_subset_instances(dirname, split, unknown_class_split.class_names))
+                            lambda: load_subset_instances(dirname, split, unknown_class_split.class_names, debug))
     MetadataCatalog.get(unknown_class_split.dataset_name).set(
         thing_classes=list(unknown_class_split.class_names), dirname=dirname, year=year, split=split,
         class_ids=list(range(len(list(unknown_class_split.class_names))))
@@ -286,7 +295,8 @@ def voc_register(dirname, split, year, data_splits):
                             lambda: load_known_and_unknown_instances(
                                 dirname,
                                 split,
-                                known_class_names=known_and_unknown_class_split.class_names
+                                known_class_names=known_and_unknown_class_split.class_names,
+                                debug=debug
                             )
                             )
     MetadataCatalog.get(known_and_unknown_class_split.dataset_name).set(
@@ -295,7 +305,7 @@ def voc_register(dirname, split, year, data_splits):
     )
 
 
-def load_coco_json(json_file, image_root):
+def load_coco_json(json_file, image_root, debug=False):
     """
     Load a json file with COCO's instances annotation format.
     Currently supports instance detection, instance segmentation,
@@ -418,11 +428,12 @@ def load_coco_json(json_file, image_root):
             objs.append(obj)
         record["annotations"] = objs
         dataset_dicts.append(record)
-
+    if debug:
+        dataset_dicts = dataset_dicts[:10]
     return dataset_dicts
 
 
-def register_coco_instances(name, json_file, image_root, unk_id):
+def register_coco_instances(name, json_file, image_root, unk_id, debug=False):
     """
     Register a dataset in COCO's json annotation format for
     instance detection, instance segmentation and keypoint detection.
@@ -443,7 +454,7 @@ def register_coco_instances(name, json_file, image_root, unk_id):
     assert isinstance(json_file, (str, os.PathLike)), json_file
     assert isinstance(image_root, (str, os.PathLike)), image_root
     # 1. register a function which returns dicts
-    DatasetCatalog.register(name, lambda: load_coco_json(json_file, image_root))
+    DatasetCatalog.register(name, lambda: load_coco_json(json_file, image_root, debug))
 
     # 2. Optionally, add metadata about this dataset,
     # since they might be useful in evaluation, visualization or logging
@@ -453,7 +464,7 @@ def register_coco_instances(name, json_file, image_root, unk_id):
     )
 
 
-def coco_register(dirname, dataset_name, unk_id: int, filename: str):
+def coco_register(dirname, dataset_name, unk_id: int, filename: str, debug=False):
     register_coco_instances(dataset_name, os.path.join(dirname, "annotations", filename),
                             os.path.join(dirname, "images", "train2017"),
-                            unk_id=unk_id)
+                            unk_id=unk_id, debug=debug)

@@ -749,11 +749,13 @@ class MyFastRCNNOutputLayers(nn.Module):
                 probs = torch.cat((probs, msp.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
             elif self.use_energy:
                 energy = self.temper * torch.logsumexp(scores / self.temper, dim=1)
-                # just for code simplicity, none of the other column are used
+                # just for resnet code, using thresholds to suppress proposals
                 probs = F.softmax(scores, dim=-1)
                 probs = torch.cat((probs, energy.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
             else:
-                raise NotImplementedError()
+                probs = F.softmax(scores, dim=-1)
+                msp = torch.max(probs, dim=1).values
+                probs = torch.cat((probs, msp.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
 
         return probs.split(num_inst_per_image, dim=0)
 
@@ -852,11 +854,11 @@ class MyFastRCNNOutputLayers(nn.Module):
         ## Remove all the rows on which background is the prediction
         # if not self.use_energy:
         #     boxes = boxes[mask_bkg]
-        filter_mask = scores > score_thresh  # R x K
+        filter_mask = scores > score_thresh  # R x K   # da fare con energy? Gli score per unk non verranno mai tagliati, serve per NMS
 
         # R' x 2. First column contains indices of the R predictions;
         # Second column contains indices of classes.
-        filter_inds = filter_mask.nonzero()
+        filter_inds = filter_mask.nonzero() # il primo contiene l'indice della proposal predetta, il secondo qual è la classe per cui lo score è sopra soglia
         boxes = boxes[filter_mask]
         scores = scores[filter_mask]
 
