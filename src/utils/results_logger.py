@@ -91,10 +91,10 @@ class Logger:
     def error(self, msg):
         logging.error(msg)
 
-    def save_cumulative_results(self, path= '/home/dariof/osod/out/new/baseline/test_open'):
+    def save_cumulative_results(self):
         # rec prec ap
         text = ''
-        with open(path + '/rec_prec_ap.csv') as f:
+        with open(self.logdir + '/rec_prec_ap.csv') as f:
             data = list(csv.reader(f, delimiter=','))
             for idx, row in enumerate(data):
                 text += f"<tr><td>{row[0]}</td>" + f"<td>{row[1]}</td>" + f"<td>{row[2]}</td>" + f"<td>{row[3]}</td></tr>"
@@ -106,24 +106,24 @@ class Logger:
         self.writer.add_text('REC_PREC_AP', text, 0)
 
         # udr udp
-        with open(path + '/udr_udp.csv') as f:
+        with open(self.logdir + '/udr_udp.csv') as f:
             data = csv.reader(f, delimiter=',')
             rows = [row for row in data]
             udr = float(rows[1][0])
             udp = float(rows[1][1])
             udf1 = (2*udr*udp)/(udr+udp)
         # wi
-        with open(path+'/wi.pkl', 'rb') as f:
+        with open(self.logdir+'/wi.pkl', 'rb') as f:
             data = pickle.load(f)
             wi = np.asarray(list(data.values())).mean()
 
         # wi_adjusted
-        with open(path+'/wi_adjusted.pkl', 'rb') as f:
+        with open(self.logdir+'/wi_adjusted.pkl', 'rb') as f:
             data = pickle.load(f)
             wi_adjusted = np.asarray(list(data.values())).mean()
 
         # a_ose
-        with open(path + '/a_ose.pkl', 'rb') as f:
+        with open(self.logdir + '/a_ose.pkl', 'rb') as f:
             data = pickle.load(f)
             a_ose = 0.
             for v in data[:-1]:
