@@ -829,10 +829,10 @@ class MyFastRCNNOutputLayers(nn.Module):
         # Swap the bkg and fg unk column, then remove bkg column in order to work with boxes
         if not (self.mode == "baseline" and not self.use_msp):
             # Azzera gli altri in maniera tale che solo l'unknown viene selezionato
-            #unknown_indices = is_unknown.nonzero(as_tuple=True)[0]
-            #scores[unknown_indices, :-1] = torch.zeros((len(unknown_indices), self.num_classes + 1)).to(self.device)
-            #not_unknown_indices = not_unknown.nonzero(as_tuple=True)[0]
-            #scores[not_unknown_indices, -1] = torch.zeros((len(not_unknown_indices))).to(self.device)
+            unknown_indices = is_unknown.nonzero(as_tuple=True)[0]
+            scores[unknown_indices, :-1] = torch.zeros((len(unknown_indices), self.num_classes + 1)).to(self.device)
+            not_unknown_indices = not_unknown.nonzero(as_tuple=True)[0]
+            scores[not_unknown_indices, -1] = torch.zeros((len(not_unknown_indices))).to(self.device)
             scores = swap(scores, dim=1, idx=self.indices_swap_bk_fgunk)
             scores = scores[:, :-1]
 
