@@ -774,6 +774,10 @@ class MyFastRCNNOutputLayers(nn.Module):
             ## In this case the anomaly score is the last column itself, we only compute the mask for removing bkg detections.
             mask_bkg = scores[:, self.num_classes] != scores[:, -1]
             scores[:, -1] = 1 - scores[:, -1]
+            max_softmax = torch.max(scores, dim=1).values
+            is_unknown = scores[:, -1] == max_softmax
+            not_unknown = torch.logical_not(is_unknown)
+
         elif self.mode == "ours":
             max_activation = torch.max(scores, dim=1).values
             is_unknown = torch.zeros(len(scores)).bool().to(self.device)
@@ -796,12 +800,10 @@ class MyFastRCNNOutputLayers(nn.Module):
             scores[:, -1][not_unknown] = float("-inf")*torch.ones(len(not_unknown.nonzero(as_tuple=True)[0])).to(self.device)
 
             # Azzera gli altri in maniera tale che solo l'unknown viene selezionato
-            unknown_indices = is_unknown.nonzero(as_tuple=True)[0]
             if self.cls_loss.loss == "ce":
                 scores = F.softmax(scores, dim=1)
             else:
                 scores = torch.sigmoid(scores)
-            scores[unknown_indices, :-1] = torch.zeros((len(unknown_indices), self.num_classes + 1)).to(self.device)
         elif self.mode == "baseline" and not self.use_msp:
             ## The first 21 columns contains softmax probability of 20 classes + bkg.
             ## The last column contains msp
@@ -814,14 +816,23 @@ class MyFastRCNNOutputLayers(nn.Module):
             ## The last column contains msp
             mask_bkg = scores[:, self.num_classes] != scores[:, -1]
             scores[:, -1] = 1 - scores[:, -1]
+            max_softmax = torch.max(scores, dim=1).values
+            is_unknown = scores[:, -1] == max_softmax
+            not_unknown = torch.logical_not(is_unknown)
         else:
             raise Exception("Training mode not recognized: {}".format(self.mode))
 
         ## Keep all rows on which background is not the maximum score
-        scores = scores[mask_bkg]
+        #scores = scores[mask_bkg]
+
 
         # Swap the bkg and fg unk column, then remove bkg column in order to work with boxes
         if not (self.mode == "baseline" and not self.use_msp):
+            # Azzera gli altri in maniera tale che solo l'unknown viene selezionato
+            #unknown_indices = is_unknown.nonzero(as_tuple=True)[0]
+            #scores[unknown_indices, :-1] = torch.zeros((len(unknown_indices), self.num_classes + 1)).to(self.device)
+            #not_unknown_indices = not_unknown.nonzero(as_tuple=True)[0]
+            #scores[not_unknown_indices, -1] = torch.zeros((len(not_unknown_indices))).to(self.device)
             scores = swap(scores, dim=1, idx=self.indices_swap_bk_fgunk)
             scores = scores[:, :-1]
 
@@ -831,7 +842,7 @@ class MyFastRCNNOutputLayers(nn.Module):
         boxes.clip(image_shape)
         boxes = boxes.tensor.view(-1, num_bbox_reg_classes, 4)  # R x ( C + 1 ) x 4
         ## Remove all the rows on which background is the prediction
-        boxes = boxes[mask_bkg]
+        #boxes = boxes[mask_bkg]
         filter_mask = scores > score_thresh  # R x K
 
         # R' x 2. First column contains indices of the R predictions;
