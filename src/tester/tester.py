@@ -61,7 +61,7 @@ class Tester:
         self.test_dataset_names = cfg.OURS.TEST_DATASETS_REGISTERED_NAMES
         self.coco_dataset_name = "COCO2017"
         self.voc_dataset_name = "VOC2007_all"
-        self.only_wic = cfg.OURS.TEST_ONLY_WIC  ## No more useful
+        self.only_wic = cfg.OURS.TEST_ONLY_WIC
         self.out_dir = cfg.OUTPUT_DIR
         self.load_predictions = cfg.OURS.TEST_LOAD_PREDICTIONS
         if len(self.test_dataset_names) == 2:
@@ -85,7 +85,8 @@ class Tester:
             voc_dataset_name=self.voc_dataset_name,
             coco_dataset_name=self.coco_dataset_name,
             mode=self.mode,
-            out_dir=self.out_dir)
+            out_dir=self.out_dir,
+            model_reject=not(cfg.OURS.MODE == "baseline" and not cfg.OURS.USE_MSP))
         if self.only_wic:
             self.evaluator._predictions = []
         self.dataset_testers: List[DatasetTester] = []
@@ -150,8 +151,8 @@ class Tester:
                     Recalls_to_process,
                     wilderness
                 )
-                save_object(WIC_precision_values, filename=os.path.join(self.cfg.OUTPUT_DIR, "wic_precision_values.pkl"))
-                save_object(wilderness_processed, filename=os.path.join(self.cfg.OUTPUT_DIR, "wilderness_processed.pkl"))
+                save_object(WIC_precision_values.to("cpu"), filename=os.path.join(self.cfg.OUTPUT_DIR, "wic_precision_values.pkl"))
+                save_object(wilderness_processed.to("cpu"), filename=os.path.join(self.cfg.OUTPUT_DIR, "wilderness_processed.pkl"))
 
 
     def test_with_precomputed_results(self):

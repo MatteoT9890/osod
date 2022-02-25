@@ -504,7 +504,7 @@ class UdrUdpResult:
 
 class UnifiedDatasetEvaluator(DatasetEvaluator):
 
-    def __init__(self, voc_dataset_name: str, coco_dataset_name, mode: str, out_dir=None, thresh=50):
+    def __init__(self, voc_dataset_name: str, coco_dataset_name, mode: str, out_dir=None, thresh=50, model_reject = True):
         self.thresh = thresh
         self.filename_unk_gt = "unk_classes_images.pkl"
         self._cpu_device = torch.device("cpu")
@@ -518,6 +518,7 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
         self.unk_classes_images_gt: Dict[str, ClassImagesGT]
         self.wi = None
         self.wi_adjusted = None
+        self.model_reject = model_reject
         assert mode == "cwwr" or mode == "open" or mode == "open_cwwr"
         assert (voc_dataset_name is not None and coco_dataset_name is not None)
         assert out_dir is not None
@@ -656,6 +657,7 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
         fp_css_cum = []
         tp_oss_cum = []
         fp_oss_cum = []
+        precisions = []
 
         for cls_id, cls_name in zip(self._classids, self._classnames):
             lines = predictions.get(cls_id, [""])
@@ -685,6 +687,7 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
             if udr is not None and udp is not None:
                 self.udr_udp_results.append(UdrUdpResult(udr=udr, udp=udp))
 
+            precisions.append(prec)
             if cls_name != unk_cls_name:
                 tp_plus_fp_cs_cum.append(tp_cum + fp_cum)
                 fp_oss_cum.append(fp_os_cum)
@@ -695,8 +698,10 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
         if self.mode == "open_cwwr":
             self.wi = self.compute_WI_at_many_recall_level(all_recs, tp_plus_fp_cs_cum, fp_oss_cum)
             self.wi_adjusted = self.compute_WI_adjusted_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
+            self.wi_entropy = self.compute_WI_entropy(precisions) if self.model_reject else None
             save_object(self.wi, os.path.join(self.out_dir, "wi.pkl"))
             save_object(self.wi_adjusted, os.path.join(self.out_dir, "wi_adjusted.pkl"))
+            save_object(self.wi_entropy, os.path.join(self.out_dir, "wi_entropy.pkl"))
             save_object(a_ose, os.path.join(self.out_dir, "a_ose.pkl"))
             save_object(error_open_set, os.path.join(self.out_dir, 'error_open_set.pkl'))
 
@@ -750,7 +755,7 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
         if self.mode == "open_cwwr":
             self.wi = self.compute_WI_at_many_recall_level(all_recs, tp_plus_fp_cs_cum, fp_oss_cum)
             self.wi_adjusted = self.compute_WI_adjusted_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
-            self.wi_entropy = self.compute_WI_entropy(precisions)
+            self.wi_entropy = self.compute_WI_entropy(precisions) if self.model_reject else None
             save_object(self.wi, os.path.join(self.out_dir, "wi.pkl"))
             save_object(self.wi_adjusted, os.path.join(self.out_dir, "wi_adjusted.pkl"))
             save_object(self.wi_entropy, os.path.join(self.out_dir, "wi_entropy.pkl"))
@@ -885,12 +890,12 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
 
     def compute_WI_adjusted_at_a_recall_level(self, recalls, tp_cs, fp_cs, tp_os, fp_os, recall_level=0.5):
         wi_adj = []
-        index_tp_os = min(range(len(recalls[-1])), key=lambda i: abs(recalls[-1][i] - recall_level))
+        index_tp_os = min(range(len(recalls[-1])), key=lambda i: abs(recalls[-1][i] - recall_level)) if self.model_reject else -1
         for cls_id, rec in enumerate(recalls[:-1]):
             index = min(range(len(rec)), key=lambda i: abs(rec[i] - recall_level))
             tp_cs_cls = tp_cs[cls_id][index]
             fp_cs_cls = fp_cs[cls_id][index]
-            tp_os_cls = tp_os[0][index_tp_os]
+            tp_os_cls = tp_os[0][index_tp_os] if self.model_reject else 0
             fp_os_cls = fp_os[cls_id][index]
 
             wi_adj_cls = tp_cs_cls/(tp_cs_cls + fp_cs_cls) * (fp_os_cls + fp_cs_cls)/(tp_cs_cls + tp_os_cls)
