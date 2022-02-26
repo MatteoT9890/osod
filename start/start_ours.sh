@@ -27,12 +27,12 @@ bash $PYTHONPATH/start/setup.sh
 #    CUDA_VISIBLE_DEVICES=0,1,2,3 python $PYTHONPATH/src/main/train.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/train_fourth_step_rcnn.yaml --num-gpus=4 #
 
     ## Test
-    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_msp.yaml --num-gpus=2 #
-    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_msp.yaml --num-gpus=2 #
-    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_fg.yaml --num-gpus=2
-    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_fg.yaml --num-gpus=2
-    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_all.yaml --num-gpus=2
-    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_all.yaml --num-gpus=2
+#    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_msp.yaml --num-gpus=2 #
+#    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_msp.yaml --num-gpus=2 #
+#    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_fg.yaml --num-gpus=2
+#    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_fg.yaml --num-gpus=2
+#    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_all.yaml --num-gpus=2
+#    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_all.yaml --num-gpus=2
     CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_unk_score.yaml --num-gpus=2
     CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/ours/zero_std/noreg/test_open_cwwr_unk_score.yaml --num-gpus=2
 

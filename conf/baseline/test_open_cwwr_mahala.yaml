@@ -5,16 +5,16 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/energy_3.11_bkg_filter/test_open" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/prova/test_open" # path to store the result
 #DATALOADER:
 #  NUM_WORKERS: 0
 OURS:
-  # DEBUG: True
+  DEBUG: True
   MODE: "baseline"
-  USE_ENERGY: True
-  REJECTION_THRESHOLD: 3.11
+  USE_MAHALANOBIS: True
+  REJECTION_THRESHOLD: 3.12
   TEMPER: 1.
-  BKG_MASK: True
+  BKG_MASK: False
   MODELS:
     RPN:
       WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step3/train/model_final.pth"

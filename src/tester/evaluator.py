@@ -211,6 +211,8 @@ class PascalLoader:
             npos = 0
             class_recs: Dict[str, ClassImageGT] = {}
             for imagename in imagenames:
+                # fixme if recs.get(imagename, None) is None:
+                #     continue
                 R = [obj for obj in recs[imagename] if obj.class_name == class_name]
                 bbox = np.array([x.bbox for x in R])
                 difficult = np.array([x.difficult for x in R]).astype(np.bool)
@@ -323,13 +325,16 @@ class CocoLoader:
                 if recs.get(image_id, None) is None:
                     continue
                 R = [obj for obj in recs[image_id] if obj.class_name == class_name]
-                bbox = np.array([x.bbox for x in R])
+                bbox = np.array([x.bbox for x in R])   # tutte le bbox per l'img i-esima
                 difficult = np.array([x.difficult for x in R]).astype(np.bool)
                 # difficult = np.array([False for x in R]).astype(np.bool)  # avoid to treat all "difficult" as GT
                 det = [False] * len(R)
                 class_image_gt = ClassImageGT(bbox=bbox, difficult=difficult, det=det)
                 npos = npos + sum(~difficult)
-                class_recs[image_id] = class_image_gt
+                class_recs[image_id] = class_image_gt #
+
+            # npos: numero totale di bbox (tra tutte le immagini della classe corrente)
+            # class_recs: per ogni classe, lista di tutte le immagini contenenti ognuna tot bbox (della data classe). La somma di tutte le tot bboxp er tutte le immagini dà npos
             class_images_gt = ClassImagesGT(npos=npos, recs=class_recs)
             classes_recs[class_name] = class_images_gt
 
@@ -348,7 +353,7 @@ def eval(detpath, class_name, class_images_gt: ClassImagesGT, class_images_gt_un
     splitlines = [x.strip().split(" ") for x in lines]
     padded_image_ids = [x[0] for x in splitlines]
     confidence = np.array([float(x[1]) for x in splitlines])
-    BB = np.array([[float(z) for z in x[2:]] for x in splitlines]).reshape(-1, 4)
+    BB = np.array([[float(z) for z in x[2:]] for x in splitlines]).reshape(-1, 4) # bb predetta con score pari a confidence
 
     # sort image ids by confidence. There can be multiple equal image ids since 2 detections can be in the same image
     sorted_ind = np.argsort(-confidence)
@@ -356,7 +361,7 @@ def eval(detpath, class_name, class_images_gt: ClassImagesGT, class_images_gt_un
     padded_image_ids = [padded_image_ids[x] for x in sorted_ind]
 
     # go down dets and mark TPs and FPs
-    nd = len(padded_image_ids)
+    nd = len(padded_image_ids) # num bbox predette per la classe corrente (class_name)
     tp = np.zeros(nd)
     fp = np.zeros(nd)
     is_unk = np.zeros(nd)
@@ -459,7 +464,7 @@ def eval(detpath, class_name, class_images_gt: ClassImagesGT, class_images_gt_un
 
         num_tp = np.sum(tp)
         num_fp = np.sum(fp)
-        recall = num_tp / class_images_gt.npos # recall: tp per class c / immagini di class c (vale anche per unk)
+        recall = num_tp / class_images_gt.npos # recall: tp per class c / bbox gt di class c (vale anche per unk)
         precision = num_tp / max((num_tp + num_fp), np.finfo(np.float64).eps)
         is_unk_cum = np.cumsum(is_unk)
     if mode == "open" and class_name == unk_cls_name:
@@ -632,6 +637,7 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
                 fp_css_cum.append(fp_cum)
             else:
                 tp_oss_cum.append(tp_cum)
+
         if self.mode == "open_cwwr":
             self.wi = self.compute_WI_at_many_recall_level(all_recs, tp_plus_fp_cs_cum, fp_oss_cum)
             self.wi_adjusted = self.compute_WI_adjusted_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)

@@ -313,15 +313,15 @@ class MyRes5ROIHeads(ROIHeads):
 
         return proposals_with_gt
 
-    def forward(
-        self,
-        images: ImageList,
-        features: Dict[str, torch.Tensor],
-        proposals: List[Instances],
-        targets: Optional[List[Instances]] = None,
-    ):
+    def forward(self, images: ImageList, features: Dict[str, torch.Tensor], proposals: List[Instances], model,
+                targets: Optional[List[Instances]] = None, previous_scores: List[torch.Tensor] = [None]):
         """
         See :meth:`ROIHeads.forward`.
+
+        Parameters
+        ----------
+        previous_scores
+
         """
         #del images
 
@@ -356,8 +356,9 @@ class MyRes5ROIHeads(ROIHeads):
                 losses.update(self.mask_head(mask_features, proposals))
             return [], losses
         else:
-            pred_instances, _ = self.box_predictor.inference(predictions, proposals) # tira fuori le bbox predette e la relativa classe
-            pred_instances = self.forward_with_given_boxes(features, pred_instances)
+            pred_instances, return_odin = self.box_predictor.inference(predictions, proposals, previous_scores) # tira fuori le bbox predette e la relativa classe
+            if return_odin[0] is not None:
+                pred_instances = self.forward_with_given_boxes(features, pred_instances)
             return pred_instances, {}
 
     def forward_with_given_boxes(

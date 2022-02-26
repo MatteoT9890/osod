@@ -5,9 +5,11 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/ours_no_filter_unk/zero_std/noreg/test_open_unk_score" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/ours_no_filter/zero_std/noreg/test_open_unk_score" # path to store the result
+#DATALOADER:
+#  NUM_WORKERS: 0
 OURS:
-  DEBUG: True
+  # DEBUG: True
   REJECTION:
     UNK_SCORE: True
   MODE: "ours"

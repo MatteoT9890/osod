@@ -4,7 +4,7 @@ from typing import Optional, Tuple, List, Dict
 import torch
 from detectron2.checkpoint import DetectionCheckpointer
 from torch import nn
-
+from torch.nn import functional as F
 from detectron2.config import configurable
 from detectron2.data.detection_utils import convert_image_to_rgb
 from detectron2.structures import ImageList, Instances
@@ -235,6 +235,7 @@ class Detector(nn.Module):
         self.step = step
         self.rpn = rpn
         self.rcnn = rcnn
+        self.repeat = rcnn.roi_heads.box_predictor.use_odin
 
         self.input_format = input_format
         self.vis_period = vis_period
@@ -328,7 +329,7 @@ class Detector(nn.Module):
                 Each dict is the output for one input image.
                 The dict contains one key "instances" whose value is a :class:`Instances`.
                 The :class:`Instances` object has the following keys:
-                "pred_boxes", "pred_classes", "scores", "pred_masks", "pred_keypoints"
+                "pred_boxes", "pred_classes", "scores", "pred_masks", "pred_keypoi0.0014nts"
         """
         if not self.training:
             return self.inference(batched_inputs)
@@ -381,15 +382,62 @@ class Detector(nn.Module):
         assert not self.training
 
         images = self.preprocess_image(batched_inputs)
+        if self.repeat:
+            images.tensor.requires_grad=True
+            for param in self.parameters():
+                param.requires_grad = False
+
         features = self.rcnn.backbone(images.tensor)
         proposals = self.rpn.generate_proposals(images=images, gt_instances=None, features=features)
         results, _ = self.rcnn.roi_heads(images, features, proposals, None)
+        if self.repeat:
+            results = self.repeat_inference(images, results)
 
         if do_postprocess:
             assert not torch.jit.is_scripting(), "Scripting is not supported for postprocess."
             return Detector._postprocess(results, batched_inputs, images.image_sizes)
         else:
             return results
+
+    def repeat_inference(
+            self,
+            images: ImageList,
+            scores: List[torch.Tensor],
+    ):
+        """
+
+        Parameters
+        ----------
+        scores
+        scores : tensor
+        """
+        assert not self.training
+        criterion = torch.nn.CrossEntropyLoss().to(images.device)
+        scores = scores[0]
+        before_perturbation_scores = deepcopy(scores.data)
+
+        probs = scores - torch.max(scores, dim=1, keepdim=True)[0]
+        probs = F.softmax(probs, dim=-1)
+        labels = torch.argmax(probs, axis=1)
+
+        scores = scores / 2.
+        loss = criterion(scores, labels)
+        loss.backward()
+
+        # Normalizing the gradient to binary in {0, 1}
+        gradient = torch.ge(images.tensor.grad.data, 0)
+        gradient = (gradient.float() - 0.5) * 2
+
+        # Normalizing the gradient to the same space of image
+        # fixme
+        # Adding small perturbations to images
+        images.tensor = torch.add(images.tensor.data, -0.0014, gradient)
+
+        features = self.rcnn.backbone(images.tensor)
+        proposals = self.rpn.generate_proposals(images=images, gt_instances=None, features=features)
+        results, _ = self.rcnn.roi_heads(images, features, proposals, None, None, [before_perturbation_scores])
+        return results
+
 
     def preprocess_image(self, batched_inputs: List[Dict[str, torch.Tensor]]):
         """

@@ -7,13 +7,14 @@ MODEL:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
 VIS_PERIOD: 0
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/baseline/step1/train" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/prova/step1/train" # path to store the result
 DATASETS:
   TRAIN: ("VOC2007_all",)
 SOLVER:
   MAX_ITER: 40000
   STEPS: (30000,)
 OURS:
+  DEBUG: True
   MODE: "baseline"
   STEP: 1
   DATASETS:

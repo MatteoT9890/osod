@@ -193,7 +193,7 @@ class DatasetTester(TestBase):
     def apply_stack_context(self, stack: ExitStack):
         if isinstance(self.detector, torch.nn.Module):
             stack.enter_context(inference_context(self.detector))
-        stack.enter_context(torch.no_grad())
+        # stack.enter_context(torch.no_grad())
 
     def run_step(self):
         inputs = next(self._data_loader_iter)

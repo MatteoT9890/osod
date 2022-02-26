@@ -80,7 +80,7 @@ def load_known_and_unknown_instances(dirname: str, split: str, known_class_names
         dicts.append(r)
 
     if debug:
-        dicts = dicts[:10]
+        dicts = dicts[:50]
 
     return dicts
 
@@ -196,7 +196,7 @@ def load_all_instances(dirname: str, split: str, class_names: Union[List[str], T
         dicts.append(r)
 
     if debug:
-        dicts=dicts[:10]
+        dicts=dicts[:50]
 
     return dicts
 
@@ -258,7 +258,7 @@ def load_subset_instances(dirname: str, split: str, class_names: Union[List[str]
             r["annotations"] = instances
             dicts.append(r)
     if debug:
-        dicts=dicts[:10]
+        dicts=dicts[:50]
     return dicts
 
 
@@ -429,7 +429,7 @@ def load_coco_json(json_file, image_root, debug=False):
         record["annotations"] = objs
         dataset_dicts.append(record)
     if debug:
-        dataset_dicts = dataset_dicts[:10]
+        dataset_dicts = dataset_dicts[:50]
     return dataset_dicts
 
 
