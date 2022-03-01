@@ -22,8 +22,8 @@ bash $PYTHONPATH/start/setup.sh
     # Test
 #    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/baseline/test_open_cwwr_nomsp.yaml --num-gpus=2 #
 #    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/baseline/test_open_cwwr_nomsp.yaml --num-gpus=2 #
-    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/baseline/test_open_cwwr.yaml --num-gpus=2 #
-    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/baseline/test_open_cwwr.yaml --num-gpus=2 #
+    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/test.py --config=$PYTHONPATH/conf/baseline/test_open_cwwr_energy.yaml --num-gpus=2 #
+    CUDA_VISIBLE_DEVICES=0,1 python $PYTHONPATH/src/main/collect_results.py --config=$PYTHONPATH/conf/baseline/test_open_cwwr_energy.yaml --num-gpus=2 #
 }
 {
   exit -1

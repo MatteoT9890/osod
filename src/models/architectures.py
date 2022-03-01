@@ -236,7 +236,7 @@ class Detector(nn.Module):
         self.rpn = rpn
         self.rcnn = rcnn
         self.odin = rcnn.roi_heads.box_predictor.use_odin
-        self.gradnorm = rcnn.roi_heads.box_predictor.use_gradnorm
+        self.temper = rcnn.roi_heads.box_predictor.temper
 
         self.input_format = input_format
         self.vis_period = vis_period
@@ -388,12 +388,12 @@ class Detector(nn.Module):
             for param in self.parameters():
                 param.requires_grad = False
 
-        if self.gradnorm:
-            images.tensor.requires_grad = True
-            for param in self.parameters():
-                param.requires_grad = True
-
-        self.zero_grad()
+        # if self.gradnorm:
+        #     images.tensor.requires_grad = True
+        #     for param in self.parameters():
+        #         param.requires_grad = True
+        #
+        # self.zero_grad()
 
         features = self.rcnn.backbone(images.tensor)
         proposals = self.rpn.generate_proposals(images=images, gt_instances=None, features=features)
@@ -428,7 +428,7 @@ class Detector(nn.Module):
         probs = F.softmax(probs, dim=-1)
         labels = torch.argmax(probs, axis=1)
 
-        scores = scores / 2.
+        scores = scores / self.temper
         loss = criterion(scores, labels)
         loss.backward()
 

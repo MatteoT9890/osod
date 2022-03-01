@@ -800,11 +800,15 @@ class MyFastRCNNOutputLayers(nn.Module):
             scores = scores[valid_mask]
 
         ## Scores shape: N x (C + 2)
-        scores_before_filter = scores
-        scores = deepcopy(scores_before_filter.data)
 
-        if self.mode == "ours":
-            scores = scores.detach()
+        if self.mode == "ours" and self.use_msp:
+            ## In this case the anomaly score is the last column itself, we only compute the mask for removing bkg detections.
+            scores[:, -1] = 1 - scores[:, -1]
+            max_softmax = torch.max(scores, dim=1).values
+            is_unknown = scores[:, -1] == max_softmax
+            not_unknown = torch.logical_not(is_unknown)
+
+        elif self.mode == "ours":
             max_activation = torch.max(scores, dim=1).values
             is_unknown = torch.zeros(len(scores)).bool().to(self.device)
 
@@ -820,25 +824,29 @@ class MyFastRCNNOutputLayers(nn.Module):
                 from_bkg_is_unknown = torch.logical_and(is_bkg, is_fg)
                 is_bkg = torch.logical_and(is_bkg, torch.logical_not(is_fg))
                 is_unknown = torch.logical_or(is_unknown, from_bkg_is_unknown)
-            mask_bkg = torch.logical_not(is_bkg)
             # Avoid unknown to be selected
             not_unknown = torch.logical_not(is_unknown)
             scores[:, -1][not_unknown] = float("-inf") * torch.ones(len(not_unknown.nonzero(as_tuple=True)[0])).to(
                 self.device)
 
             # Azzera gli altri in maniera tale che solo l'unknown viene selezionato
-            unknown_indices = is_unknown.nonzero(as_tuple=True)[0]
             if self.cls_loss.loss == "ce":
                 scores = F.softmax(scores, dim=1)
             else:
                 scores = torch.sigmoid(scores)
-            scores[unknown_indices, :-1] = torch.zeros((len(unknown_indices), self.num_classes + 1)).to(self.device)
+        elif self.mode == "baseline" and self.use_msp:
+            ## The first 21 columns contains softmax probability of 20 classes + bkg.
+            ## The last column contains msp
+            scores[:, -1] = 1 - scores[:, -1]
+            max_softmax = torch.max(scores, dim=1).values
+            is_unknown = scores[:, -1] == max_softmax
+            not_unknown = torch.logical_not(is_unknown)
         elif self.mode == "baseline" and self.use_energy:
             energy = self.temper * torch.logsumexp(scores / self.temper, dim=1)
+            energy = (energy - energy.min()) / (energy.max() - energy.min())
             is_unknown = energy >= self.rejection_threshold
             not_unknown = torch.logical_not(is_unknown)
-            scores = torch.cat((scores, torch.sigmoid(energy).unsqueeze(dim=1)), dim=1)
-
+            scores = torch.cat((scores, energy.unsqueeze(dim=1)), dim=1)
         elif self.mode == "baseline" and self.use_odin:
             if self.odin_pass == 0:
                 self.odin_pass = 1
@@ -849,32 +857,30 @@ class MyFastRCNNOutputLayers(nn.Module):
                 scores = scores / self.temper
                 scores = scores - torch.max(scores, dim=1, keepdim=True)[0]
                 scores = F.softmax(scores, dim=-1)
-                scores_before_filter = deepcopy(scores.data)
-        elif self.mode == "baseline" and self.use_msp:
-            ## In this case the anomaly score is the last column itself, we only compute the mask for removing bkg detections.
 
-            scores[:, -1] = 1 - scores[:, -1]
-            max_softmax = torch.max(scores, dim=1).values
-            is_unknown = scores[:, -1] == max_softmax
-            not_unknown = torch.logical_not(is_unknown)
+                max_scores = torch.max(scores, dim=1).values
+                scores = torch.cat((scores, max_scores.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
+                scores[:, -1] = 1 - scores[:, -1]
+                is_unknown = scores[:, -1] == max_scores
+                not_unknown = torch.logical_not(is_unknown)
+
+        elif self.mode == "baseline" and not any([self.use_msp, self.use_energy, self.use_odin]):
+            ## The first 21 columns contains softmax probability of 20 classes + bkg.
+            ## The last column contains msp
+            scores = scores[:, :-2]
+            ##Remove last 4 coordinates indicating proposal coordinates, since no unknown exists hence are unuseful.
+            boxes = boxes[:, :-4]
         else:
             raise Exception("Training mode not recognized: {}".format(self.mode))
 
-        if self.bkg_mask:
-            scores = scores[mask_bkg]
-
-        # Swap the bkg and fg unk column, then remove bkg column in order to work with boxes
-        if self.mode == "ours":
-            scores = swap(scores, dim=1, idx=self.indices_swap_bk_fgunk)
-            scores = scores[:, :-1]
-        else:
-            # fixme qui per faster no rejection andrebbe modificato
-            # if is_unknown.nonzero(as_tuple=True)[0].nelement() != 0:
+        # if it is only baseline do not enter. Enter in all the other cases
+        if not (self.mode == "baseline" and not any([self.use_msp, self.use_energy, self.use_odin])):
             # Azzera gli altri in maniera tale che solo l'unknown viene selezionato
             unknown_indices = is_unknown.nonzero(as_tuple=True)[0]
             scores[unknown_indices, :-1] = torch.zeros((len(unknown_indices), self.num_classes + 1)).to(self.device)
             not_unknown_indices = not_unknown.nonzero(as_tuple=True)[0]
             scores[not_unknown_indices, -1] = torch.zeros((len(not_unknown_indices))).to(self.device)
+            # Swap the bkg and fg unk column, then remove bkg column in order to work with boxes
             scores = swap(scores, dim=1, idx=self.indices_swap_bk_fgunk)
             scores = scores[:, :-1]
 
@@ -882,11 +888,9 @@ class MyFastRCNNOutputLayers(nn.Module):
         num_bbox_reg_classes = boxes.shape[1] // 4
         boxes = Boxes(boxes.reshape(-1, 4))
         boxes.clip(image_shape)
-        boxes = boxes.tensor.view(-1, num_bbox_reg_classes, 4)  # R x ( C + 1 ) x 4
-
-        if self.bkg_mask:
-            boxes = boxes[mask_bkg]
-
+        boxes = boxes.tensor.view(-1, num_bbox_reg_classes, 4).detach() # R x ( C + 1 ) x 4
+        scores = scores.detach()
+        ## Remove all the rows on which background is the prediction
         filter_mask = scores > score_thresh  # R x K
 
         # R' x 2. First column contains indices of the R predictions;
@@ -897,105 +901,19 @@ class MyFastRCNNOutputLayers(nn.Module):
 
         # 2. Apply NMS for each class independently.
         keep = batched_nms(boxes, scores, filter_inds[:, 1], nms_thresh)
-
         if topk_per_image >= 0:
             keep = keep[:topk_per_image]
-
         boxes, scores, filter_inds = boxes[keep], scores[keep], filter_inds[keep]
 
-        if self.use_msp or self.use_odin:
-            # max_per_each_proposals = scores_before_filter[filter_inds[:, 0], filter_inds[:, 1]]
-            # pred_classes = filter_inds[:, 1]
-            # rejected = 1-max_per_each_proposals >= self.rejection_threshold
-            # pred_unk = pred_classes == self.num_classes
-            # is_unk = torch.logical_and(rejected, pred_unk)
-            # pred_classes[is_unk] = self.num_classes + 1  # per le proposal predette unk e sotto soglia, unk, altrimenti bkg
-            # # azzero -> per tutte le proposal che sono classificate unk, non considero predizioni per altre classi
-            # # escludo così i casi in cui sia pred unk sbagliando e avendo prob bassa della classe giusta sia considerato nella map
-            # filter_inds[:, 1] = pred_classes
-            # proposals = filter_inds[:, 0]
-            # find duplicates
-            # unique_proposals, count = torch.unique(filter_inds[:, 0], return_counts=True)
-            # if count.nelement() != 0 and (count > 1).max():
-            #     duplicates_mask = unique_proposals[count >1].unsqueeze(1) # all duplicates
-            #     duplicates_mask = (proposals == duplicates_mask).sum(dim=0).bool()  # mask duplicates. True if proposal is duplicate, False if not
-            #     duplicates = filter_inds[duplicates_mask]
-            #     duplicates_with_pred_unk = duplicates[duplicates[:,1] == self.num_classes+1][:,0]  # only duplicate proposal that have one pred to unk (no duplicates with both pred known)
-            #     if duplicates_with_pred_unk.nelement() != 0:  # if any
-            #         duplicates_with_pred_known = torch.logical_and((proposals == duplicates_with_pred_unk.unsqueeze(1)).sum(dim=0).bool(), pred_classes != self.num_classes+1)  # True -> duplicate proposal with pred known (to be removed), false all the others
-            #         filter_inds = filter_inds[torch.logical_not(duplicates_with_pred_known)]  # reverse -> keep everything except proposal with pred known
-            #         scores = scores[torch.logical_not(duplicates_with_pred_known)]
-            #         boxes = boxes[torch.logical_not(duplicates_with_pred_known)]
-            #         pred_classes = pred_classes[torch.logical_not(duplicates_with_pred_known)]
-
-            # Convert fg unk label to original value
-            pred_classes = filter_inds[:, 1]
-            pred_classes[pred_classes == self.num_classes] = self.num_classes + 1
-        elif self.use_gradnorm:
-            logsoftmax = torch.nn.LogSoftmax(dim=-1).to(scores_before_filter.device)
-            scores_before_filter = scores_before_filter[filter_inds[:, 0]] / self.temper
-            targets = torch.ones((scores_before_filter.shape[0], self.num_classes+1)).to(scores_before_filter.device)
-            loss = torch.mean(torch.sum(-targets * logsoftmax(scores_before_filter), dim=-1))
-
-            loss.backward()
-
-            layer_grad = head.weight.grad.data
-
-            layer_grad_norm = torch.sum(torch.abs(layer_grad))
-
-        elif self.use_energy:
-            # energy_per_each_proposals = energy[filter_inds[:, 0]]
-            # pred_classes = filter_inds[:, 1]
-            # pred_unk = energy_per_each_proposals >= self.rejection_threshold
-            # unknown_loc = pred_classes == self.num_classes
-            # pred_classes[torch.logical_and(pred_unk, unknown_loc)] = self.num_classes + 1
-            pred_classes = filter_inds[:, 1]
-            pred_classes[pred_classes == self.num_classes] = self.num_classes + 1
-            # print("min" + str(energy_per_each_proposals.min().item()))
-            # print("max" + str(energy_per_each_proposals.max().item()))
-            # print("avg" + str(energy_per_each_proposals.mean().item()))
-            # print("###")
-        elif self.use_mahalanobis:
-            print("uagliù")
-        elif self.mode == 'ours':
-            pred_classes = filter_inds[:, 1]
-            pred_classes[pred_classes == self.num_classes] = self.num_classes + 1
-        else:
-            raise NotImplementedError("There is an error")
-
         result = Instances(image_shape)
-        result.pred_boxes = Boxes(boxes.detach())
-        result.scores = scores.detach()
+        result.pred_boxes = Boxes(boxes)
+        result.scores = scores
+
+        # Convert fg unk label to original value
+        pred_classes = filter_inds[:, 1]
+        pred_classes[pred_classes == self.num_classes] = self.num_classes + 1
         result.pred_classes = pred_classes
-
-        # pred_classes_no_bkg = filter_inds_no_bkg[:, 1]
-        # if not torch.equal(pred_classes[pred_classes != 21], pred_classes_no_bkg):
-        #     print("diversi")
-        #     print(pred_classes[pred_classes != 21])
-        #     print(pred_classes_no_bkg)
-        #     print("#####")
-
         return result, filter_inds[:, 0]
-
-        # computing argmax -> only one class per each proposal
-        # scores_before_filter = deepcopy(scores)
-
-        # 3. Add unknown predictions
-        # max_per_each_proposals = scores_before_filter[filter_inds[:, 0], filter_inds[:, 1]]
-        # pred_classes = filter_inds[:, 1]
-        # pred_unk = 1-max_per_each_proposals <= self.rejection_threshold
-        # unknown_loc = pred_classes == self.num_classes
-        # pred_classes[torch.logical_and(pred_unk, unknown_loc)] = self.num_classes + 1
-
-        # multiple predictions
-        # if len(filter_inds[:, 0].unique()) != len(filter_inds[:, 0]):
-        #     print()
-        #     u, c = torch.unique(filter_inds[:, 0], return_counts=True)
-        #     multiple_proposal = u[c > 1]
-        #     # find highest score and prediction for multiple proposals
-        #     scores_multiple = scores_before_filter[multiple_proposal, :][:,:-1]
-        #     val, pred = scores_multiple.max(dim=1)
-        #     filter_inds[filter_inds[:, 0] == multiple_proposal]
 
     def fast_rcnn_inference(
             self,

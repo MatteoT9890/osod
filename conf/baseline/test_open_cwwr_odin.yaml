@@ -5,7 +5,7 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/prova/test_open" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/new_odin/test_open" # path to store the result
 #DATALOADER:
 #  NUM_WORKERS: 0
 OURS:

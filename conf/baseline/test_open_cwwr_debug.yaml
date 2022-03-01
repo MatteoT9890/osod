@@ -11,10 +11,10 @@ OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/prova/test_open" # msp_nob
 OURS:
   DEBUG: True
   MODE: "baseline"
-  USE_ENERGY: True
-  REJECTION_THRESHOLD: 3.12
-  TEMPER: 1.
+  USE_ODIN: True
+  REJECTION_THRESHOLD: 0.5
   BKG_MASK: False
+  TEMPER: 2.
   MODELS:
     RPN:
       WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step3/train/model_final.pth"
