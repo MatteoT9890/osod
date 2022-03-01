@@ -356,8 +356,8 @@ class MyRes5ROIHeads(ROIHeads):
                 losses.update(self.mask_head(mask_features, proposals))
             return [], losses
         else:
-            pred_instances, return_odin = self.box_predictor.inference(predictions, proposals, previous_scores) # tira fuori le bbox predette e la relativa classe
-            if return_odin[0] is not None:
+            pred_instances, double_pass = self.box_predictor.inference(predictions, proposals, previous_scores, [self.box_predictor.cls_score]) # tira fuori le bbox predette e la relativa classe
+            if double_pass[0] is not None:
                 pred_instances = self.forward_with_given_boxes(features, pred_instances)
             return pred_instances, {}
 

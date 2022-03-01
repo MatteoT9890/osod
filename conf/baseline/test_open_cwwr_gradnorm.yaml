@@ -11,10 +11,10 @@ OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/prova/test_open" # path to
 OURS:
 #  DEBUG: True
   MODE: "baseline"
-  USE_ODIN: True
+  USE_GRADNORM: True
   REJECTION_THRESHOLD: 0.5
   BKG_MASK: False
-  TEMPER: 2.
+  TEMPER: 1.
   MODELS:
     RPN:
       WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step3/train/model_final.pth"

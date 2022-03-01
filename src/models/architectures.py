@@ -235,7 +235,8 @@ class Detector(nn.Module):
         self.step = step
         self.rpn = rpn
         self.rcnn = rcnn
-        self.repeat = rcnn.roi_heads.box_predictor.use_odin
+        self.odin = rcnn.roi_heads.box_predictor.use_odin
+        self.gradnorm = rcnn.roi_heads.box_predictor.use_gradnorm
 
         self.input_format = input_format
         self.vis_period = vis_period
@@ -382,15 +383,22 @@ class Detector(nn.Module):
         assert not self.training
 
         images = self.preprocess_image(batched_inputs)
-        if self.repeat:
-            images.tensor.requires_grad=True
+        if self.odin:
+            images.tensor.requires_grad = True
             for param in self.parameters():
                 param.requires_grad = False
+
+        if self.gradnorm:
+            images.tensor.requires_grad = True
+            for param in self.parameters():
+                param.requires_grad = True
+
+        self.zero_grad()
 
         features = self.rcnn.backbone(images.tensor)
         proposals = self.rpn.generate_proposals(images=images, gt_instances=None, features=features)
         results, _ = self.rcnn.roi_heads(images, features, proposals, None)
-        if self.repeat:
+        if self.odin:
             results = self.repeat_inference(images, results)
 
         if do_postprocess:
