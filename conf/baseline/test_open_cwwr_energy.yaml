@@ -5,14 +5,14 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/new_energy_0.3_t1/test_open" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/new_energy_0.43_t1/test_open" # path to store the result
 #DATALOADER:
 #  NUM_WORKERS: 0
 OURS:
   # DEBUG: True
   MODE: "baseline"
   USE_ENERGY: True
-  REJECTION_THRESHOLD: 0.3
+  REJECTION_THRESHOLD: 0.43
   TEMPER: 1.
   BKG_MASK: False
   MODELS:
