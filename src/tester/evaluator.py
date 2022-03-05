@@ -698,9 +698,11 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
         if self.mode == "open_cwwr":
             self.wi = self.compute_WI_at_many_recall_level(all_recs, tp_plus_fp_cs_cum, fp_oss_cum)
             self.wi_adjusted = self.compute_WI_adjusted_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
+            wi_no_simplified = self.compute_WI_no_simplified_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
             self.wi_entropy = self.compute_WI_entropy(precisions) if self.model_reject else None
             save_object(self.wi, os.path.join(self.out_dir, "wi.pkl"))
             save_object(self.wi_adjusted, os.path.join(self.out_dir, "wi_adjusted.pkl"))
+            save_object(wi_no_simplified, os.path.join(self.out_dir, "wi_no_simplified.pkl"))
             save_object(self.wi_entropy, os.path.join(self.out_dir, "wi_entropy.pkl"))
             save_object(a_ose, os.path.join(self.out_dir, "a_ose.pkl"))
             save_object(error_open_set, os.path.join(self.out_dir, 'error_open_set.pkl'))
@@ -755,9 +757,11 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
         if self.mode == "open_cwwr":
             self.wi = self.compute_WI_at_many_recall_level(all_recs, tp_plus_fp_cs_cum, fp_oss_cum)
             self.wi_adjusted = self.compute_WI_adjusted_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
+            wi_no_simplified = self.compute_WI_no_simplified_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
             self.wi_entropy = self.compute_WI_entropy(precisions) if self.model_reject else None
             save_object(self.wi, os.path.join(self.out_dir, "wi.pkl"))
             save_object(self.wi_adjusted, os.path.join(self.out_dir, "wi_adjusted.pkl"))
+            save_object(wi_no_simplified, os.path.join(self.out_dir, "wi_no_simplified.pkl"))
             save_object(self.wi_entropy, os.path.join(self.out_dir, "wi_entropy.pkl"))
             save_object(a_ose, os.path.join(self.out_dir, "a_ose.pkl"))
             save_object(error_open_set, os.path.join(self.out_dir, 'error_open_set.pkl'))
@@ -870,6 +874,32 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
             fps.append(fp)
         if len(tp_plus_fps) > 0:
             wi = np.mean(fps) / np.mean(tp_plus_fps)
+        else:
+            wi = 0
+        return wi
+
+    def compute_WI_no_simplified_at_many_recall_level(self, recalls, tp_cs, fp_cs, tp_os, fp_os):
+        wi_at_recall = {}
+        for r in range(1, 10):
+            r = r/10
+            wi = self.compute_WI_no_simplified_at_a_recall_level(recalls, tp_cs, fp_cs, tp_os, fp_os, recall_level=r)
+            wi_at_recall[r] = wi
+        return wi_at_recall
+
+    def compute_WI_no_simplified_at_a_recall_level(self, recalls, tp_cs, fp_cs, tp_os, fp_os, recall_level=0.5):
+        wi_no_simplified = []
+        index_tp_os = min(range(len(recalls[-1])), key=lambda i: abs(recalls[-1][i] - recall_level)) if self.model_reject else -1
+        for cls_id, rec in enumerate(recalls[:-1]):
+            index = min(range(len(rec)), key=lambda i: abs(rec[i] - recall_level))
+            tp_cs_cls = tp_cs[cls_id][index]
+            fp_cs_cls = fp_cs[cls_id][index]
+            tp_os_cls = tp_os[0][index_tp_os] if self.model_reject else 0
+            fp_os_cls = fp_os[cls_id][index]
+
+            wi_no_simplified_cls = tp_cs_cls/(tp_cs_cls + fp_cs_cls) * (tp_cs_cls + tp_os_cls + fp_os_cls + fp_cs_cls)/(tp_cs_cls + tp_os_cls) - 1
+            wi_no_simplified.append(wi_no_simplified_cls)
+        if len(wi_no_simplified) > 0:
+            wi = np.mean(wi_no_simplified)
         else:
             wi = 0
         return wi
