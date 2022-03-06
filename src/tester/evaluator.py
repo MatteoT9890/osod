@@ -696,16 +696,23 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
             else:
                 tp_oss_cum.append(tp_cum)
         if self.mode == "open_cwwr":
-            self.wi = self.compute_WI_at_many_recall_level(all_recs, tp_plus_fp_cs_cum, fp_oss_cum)
-            self.wi_adjusted = self.compute_WI_adjusted_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
+            tp_c = [max(el) for el in tp_css_cum]
+            tp_o = max(tp_oss_cum[0]) if len(tp_oss_cum[0]) != 0 else 0
+            fp_c = [max(el) for el in fp_css_cum]
+            fp_o = sum([max(el) for el in fp_oss_cum])
+            save_object(sum(tp_c), os.path.join(self.out_dir, "tp_c.pkl"))
+            save_object(tp_o, os.path.join(self.out_dir, "tp_o.pkl"))
+            save_object(sum(fp_c), os.path.join(self.out_dir, "fp_c.pkl"))
+            save_object(fp_o, os.path.join(self.out_dir, "fp_o.pkl"))
+            wi = self.compute_WI_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, fp_oss_cum)
+            wi_adjusted = self.compute_WI_adjusted_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
             wi_no_simplified = self.compute_WI_no_simplified_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
-            self.wi_entropy = self.compute_WI_entropy(precisions) if self.model_reject else None
-            save_object(self.wi, os.path.join(self.out_dir, "wi.pkl"))
-            save_object(self.wi_adjusted, os.path.join(self.out_dir, "wi_adjusted.pkl"))
+            #wi_no_simplified = self.compute_WI_no_simplified(tp_c,tp_o,fp_c,fp_o,)  ## Not averaged on many recall level
+            #wi_adjusted = self.compute_WI_adjusted(tp_c,tp_o,fp_c,fp_o,)  ## Not averaged on many recall level
+            save_object(wi, os.path.join(self.out_dir, "wi.pkl"))
             save_object(wi_no_simplified, os.path.join(self.out_dir, "wi_no_simplified.pkl"))
-            save_object(self.wi_entropy, os.path.join(self.out_dir, "wi_entropy.pkl"))
+            save_object(wi_adjusted, os.path.join(self.out_dir, "wi_adjusted.pkl"))
             save_object(a_ose, os.path.join(self.out_dir, "a_ose.pkl"))
-            save_object(error_open_set, os.path.join(self.out_dir, 'error_open_set.pkl'))
 
     def evaluate_with_precomputed_results(self):
         """
@@ -755,16 +762,23 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
             else:
                 tp_oss_cum.append(tp_cum)
         if self.mode == "open_cwwr":
-            self.wi = self.compute_WI_at_many_recall_level(all_recs, tp_plus_fp_cs_cum, fp_oss_cum)
-            self.wi_adjusted = self.compute_WI_adjusted_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
+            tp_c = [max(el) for el in tp_css_cum]
+            tp_o = max(tp_oss_cum[0]) if len(tp_oss_cum[0]) != 0 else 0
+            fp_c = [max(el) for el in fp_css_cum]
+            fp_o = sum([max(el) for el in fp_oss_cum])
+            save_object(sum(tp_c), os.path.join(self.out_dir, "tp_c.pkl"))
+            save_object(tp_o, os.path.join(self.out_dir, "tp_o.pkl"))
+            save_object(sum(fp_c), os.path.join(self.out_dir, "fp_c.pkl"))
+            save_object(fp_o, os.path.join(self.out_dir, "fp_o.pkl"))
+            wi = self.compute_WI_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, fp_oss_cum)
+            wi_adjusted = self.compute_WI_adjusted_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
             wi_no_simplified = self.compute_WI_no_simplified_at_many_recall_level(all_recs, tp_css_cum, fp_css_cum, tp_oss_cum, fp_oss_cum)
-            self.wi_entropy = self.compute_WI_entropy(precisions) if self.model_reject else None
-            save_object(self.wi, os.path.join(self.out_dir, "wi.pkl"))
-            save_object(self.wi_adjusted, os.path.join(self.out_dir, "wi_adjusted.pkl"))
+            #wi_no_simplified = self.compute_WI_no_simplified(tp_c,tp_o,fp_c,fp_o,)  ## Not averaged on many recall level
+            #wi_adjusted = self.compute_WI_adjusted(tp_c,tp_o,fp_c,fp_o,)  ## Not averaged on many recall level
+            save_object(wi, os.path.join(self.out_dir, "wi.pkl"))
             save_object(wi_no_simplified, os.path.join(self.out_dir, "wi_no_simplified.pkl"))
-            save_object(self.wi_entropy, os.path.join(self.out_dir, "wi_entropy.pkl"))
+            save_object(wi_adjusted, os.path.join(self.out_dir, "wi_adjusted.pkl"))
             save_object(a_ose, os.path.join(self.out_dir, "a_ose.pkl"))
-            save_object(error_open_set, os.path.join(self.out_dir, 'error_open_set.pkl'))
 
     def evaluate_wic(self):
         predictions = [el for pred in self.all_predictions for el in pred]
@@ -854,26 +868,38 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
         WIC_precision_values = WIC_precision_values[0, :] / WIC_precision_values
         WIC_precision_values = WIC_precision_values - 1
         return WIC_precision_values, torch.tensor(wilderness_processed)
+    
+    def compute_WI_no_simplified(self, tp_cs, tp_o, fp_cs, fp_o):
+        wi_s = []
+        for tp_c, fp_c in zip(tp_cs, fp_cs):
+            wi_s.append((tp_c*fp_o - fp_c*tp_o)/((tp_c+fp_c) * (tp_o+fp_o)))
+        return np.mean(wi_s)
+    def compute_WI_adjusted(self, tp_cs, tp_o, fp_cs, fp_o):
+        wi_s = []
+        for tp_c, fp_c in zip(tp_cs, fp_cs):
+            wi_s.append(tp_c/(tp_c + fp_c) * (fp_o + fp_c)/(tp_c+tp_o))
+        return np.mean(wi_s)
 
-    def compute_WI_at_many_recall_level(self, recalls, tp_plus_fp_cs, fp_os):
+    def compute_WI_at_many_recall_level(self, recalls, tp_cs, fp_cs, fp_os):
         wi_at_recall = {}
         for r in range(1, 10):
             r = r/10
-            wi = self.compute_WI_at_a_recall_level(recalls, tp_plus_fp_cs, fp_os, recall_level=r)
+            wi = self.compute_WI_at_a_recall_level(recalls, tp_cs, fp_cs, fp_os, recall_level=r)
             wi_at_recall[r] = wi
         return wi_at_recall
 
-    def compute_WI_at_a_recall_level(self, recalls, tp_plus_fp_cs, fp_os, recall_level=0.5):
-        tp_plus_fps = []
-        fps = []
+    def compute_WI_at_a_recall_level(self, recalls, tp_cs, fp_cs, fp_os, recall_level=0.5):
+        wi_simplified = []
         for cls_id, rec in enumerate(recalls[:-1]):
             index = min(range(len(rec)), key=lambda i: abs(rec[i] - recall_level))
-            tp_plus_fp = tp_plus_fp_cs[cls_id][index]
-            tp_plus_fps.append(tp_plus_fp)
-            fp = fp_os[cls_id][index]
-            fps.append(fp)
-        if len(tp_plus_fps) > 0:
-            wi = np.mean(fps) / np.mean(tp_plus_fps)
+            tp_cs_cls = tp_cs[cls_id][index]
+            fp_cs_cls = fp_cs[cls_id][index]
+            fp_os_cls = fp_os[cls_id][index]
+
+            wi_simplified_cls = fp_os_cls/(tp_cs_cls + fp_cs_cls)
+            wi_simplified.append(wi_simplified_cls)
+        if len(wi_simplified) > 0:
+            wi = np.mean(wi_simplified)
         else:
             wi = 0
         return wi
