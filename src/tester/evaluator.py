@@ -13,12 +13,15 @@ from functools import lru_cache
 import torch
 
 from detectron2.data import MetadataCatalog
+from detectron2.data.detection_utils import convert_image_to_rgb
 from detectron2.structures import Instances, BoxMode, Boxes, pairwise_iou
 from detectron2.utils import comm
+from detectron2.utils.events import get_event_storage
 from detectron2.utils.file_io import PathManager
 
 from detectron2.evaluation.evaluator import DatasetEvaluator
 from src.structures.metrics import DetectionMetrics
+from src.utils import Logger
 from src.utils.utils import get_max_iou, save_object, load_object
 
 
@@ -504,13 +507,14 @@ class UdrUdpResult:
 
 class UnifiedDatasetEvaluator(DatasetEvaluator):
 
-    def __init__(self, voc_dataset_name: str, coco_dataset_name, mode: str, out_dir=None, thresh=50, model_reject = True):
+    def __init__(self, voc_dataset_name: str, coco_dataset_name, mode: str, out_dir=None, thresh=50, model_reject = True, cfg = None):
         self.thresh = thresh
         self.filename_unk_gt = "unk_classes_images.pkl"
         self._cpu_device = torch.device("cpu")
         self._logger = logging.getLogger(__name__)
         self._predictions = defaultdict(list)
         self.mode = mode
+        self.cfg = cfg
         self.out_dir = out_dir
         self.voc_images_to_ann: Dict[str, List[BoxImageGT]]
         self.coco_images_to_ann: Dict[str, List[BoxImageGT]]
@@ -519,6 +523,8 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
         self.wi = None
         self.wi_adjusted = None
         self.model_reject = model_reject
+        self.logger = Logger(self.out_dir, 0)
+
         assert mode == "cwwr" or mode == "open" or mode == "open_cwwr"
         assert (voc_dataset_name is not None and coco_dataset_name is not None)
         assert out_dir is not None
@@ -554,6 +560,36 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
         self.rec_prec_ap_results: List[RecPrecAp] = []
         self.udr_udp_results: List[UdrUdpResult] = []
 
+    def visualize_predictions(self, input, predictions):
+        """
+        A function used to visualize images and proposals. It shows ground truth
+        bounding boxes on the original image and up to 20 top-scoring predicted
+        object proposals on the original image. Users can implement different
+        visualization functions for different models.
+
+        Args:
+            batched_inputs (list): a list that contains input to the model.
+            proposals (list): a list that contains predicted proposals. Both
+                batched_inputs and proposals should have the same length.
+        """
+        from detectron2.utils.visualizer import Visualizer
+
+        img = input["image"]
+        img = convert_image_to_rgb(img.permute(1, 2, 0), self.cfg.INPUT.FORMAT)
+        v_gt = Visualizer(img, None)
+        v_gt = v_gt.overlay_instances(boxes=input["instances"].gt_boxes)
+        gt_img = v_gt.get_image()
+        box_size = len(predictions)
+        v_pred = Visualizer(img, None)
+        v_pred = v_pred.overlay_instances(
+            boxes=predictions[0:box_size]
+        )
+        pred_img = v_pred.get_image()
+        vis_img = np.concatenate((gt_img, pred_img), axis=1)
+        vis_img = vis_img.transpose(2, 0, 1)
+        vis_name = "Left: GT bounding boxes;  Right: Predicted boxes"
+        self.logger.add_image(vis_name, vis_img)
+
     def process(self, inputs, outputs, dataset_name: str):
         for input, output in zip(inputs, outputs):
             image_id = input["image_id"]
@@ -574,6 +610,8 @@ class UnifiedDatasetEvaluator(DatasetEvaluator):
                 self._predictions[cls].append(
                     f"{new_image_id} {score:.3f} {xmin:.1f} {ymin:.1f} {xmax:.1f} {ymax:.1f}"
                 )
+
+            self.visualize_predictions(input, boxes)
 
     def process_wic(self, inputs, outputs, dataset_name: str):
         for input, output in zip(inputs, outputs):

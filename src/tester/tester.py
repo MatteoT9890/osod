@@ -86,7 +86,9 @@ class Tester:
             coco_dataset_name=self.coco_dataset_name,
             mode=self.mode,
             out_dir=self.out_dir,
-            model_reject=not(cfg.OURS.MODE == "baseline" and not cfg.OURS.USE_MSP))
+            model_reject=not(cfg.OURS.MODE == "baseline" and not cfg.OURS.USE_MSP) and cfg.OURS.REJECT,
+            cfg=cfg
+        )
         if self.only_wic:
             self.evaluator._predictions = []
         self.dataset_testers: List[DatasetTester] = []
