@@ -187,6 +187,42 @@ class RegionProposalNetwork(nn.Module):
             storage.put_image(vis_name, vis_img)
             break  # only visualize one image in a batch
 
+    def visualize_unk_proposals(self, batched_inputs, proposals):
+        """
+        A function used to visualize images and proposals. It shows ground truth
+        bounding boxes on the original image and up to 20 top-scoring predicted
+        object proposals on the original image. Users can implement different
+        visualization functions for different models.
+
+        Args:
+            batched_inputs (list): a list that contains input to the model.
+            proposals (list): a list that contains predicted proposals. Both
+                batched_inputs and proposals should have the same length.
+        """
+        from detectron2.utils.visualizer import Visualizer
+
+        storage = get_event_storage()
+        max_vis_prop = 2
+        for input, prop in zip(batched_inputs, proposals):
+            if(len(prop)) == 0:
+                continue
+            if(len(prop.proposal_boxes) < max_vis_prop):
+                continue
+            img = input["image"]
+            img = convert_image_to_rgb(img.permute(1, 2, 0), self.input_format)
+            v_gt = Visualizer(img, None)
+            v_gt = v_gt.overlay_instances(boxes=input["instances"].gt_boxes)
+            anno_img = v_gt.get_image()
+            box_size = max_vis_prop
+            v_pred = Visualizer(img, None)
+            v_pred = v_pred.overlay_instances(
+                boxes=prop.proposal_boxes[-box_size:].tensor.cpu().numpy()
+            )
+            prop_img = v_pred.get_image()
+            vis_img = np.concatenate((anno_img, prop_img), axis=1)
+            vis_img = vis_img.transpose(2, 0, 1)
+            vis_name = "Left: GT bounding boxes;  Right: Unknown proposals"
+            storage.put_image(vis_name, vis_img)
 
 class FastRCNN(nn.Module):
     def __init__(self, backbone, roi_heads):
@@ -303,7 +339,7 @@ class Detector(nn.Module):
             prop_img = v_pred.get_image()
             vis_img = np.concatenate((anno_img, prop_img), axis=1)
             vis_img = vis_img.transpose(2, 0, 1)
-            vis_name = "Left: GT bounding boxes;  Right: Predicted proposals"
+            vis_name = "Left: GT bounding boxes;  Right: Unknown proposals"
             storage.put_image(vis_name, vis_img)
             break  # only visualize one image in a batch
 
@@ -346,11 +382,15 @@ class Detector(nn.Module):
         else:
             proposals = self.rpn.generate_proposals(images=images, gt_instances=gt_instances, features=None)
 
-        _, detector_losses = self.rcnn.roi_heads(images, features, proposals, gt_instances)
+        _, detector_losses, proposals_with_unk = self.rcnn.roi_heads(images, features, proposals, gt_instances)
+
+
+
         if self.vis_period > 0:
             storage = get_event_storage()
             if storage.iter % self.vis_period == 0:
-                self.visualize_training(batched_inputs, proposals)
+                if self.rcnn.roi_heads.visualize_rpn_unknown:
+                    self.rpn.visualize_unk_proposals(batched_inputs, proposals_with_unk)
 
         losses = {}
         losses.update(detector_losses)
@@ -382,8 +422,8 @@ class Detector(nn.Module):
 
         images = self.preprocess_image(batched_inputs)
         features = self.rcnn.backbone(images.tensor)
-        proposals = self.rpn.generate_proposals(images=images, gt_instances=None, features=features)
-        results, _ = self.rcnn.roi_heads(images, features, proposals, None)
+        proposals, _ = self.rpn.generate_proposals(images=images, gt_instances=None, features=features)
+        results, _, _ = self.rcnn.roi_heads(images, features, proposals, None)
 
         if do_postprocess:
             assert not torch.jit.is_scripting(), "Scripting is not supported for postprocess."

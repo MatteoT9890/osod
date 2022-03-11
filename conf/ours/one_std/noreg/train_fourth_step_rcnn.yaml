@@ -6,7 +6,7 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-VIS_PERIOD: 0
+VIS_PERIOD: 2
 OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/ours/one_std/noreg/step4/train" # path to store the result
 DATASETS:
   TRAIN: ("VOC2007_all",)
@@ -24,6 +24,7 @@ OURS:
       WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step3/train/model_final.pth"
       FG_PERCENTILE: 4.54 #2.68 0STD - 4.54 1STD
       BG_PERCENTILE: -8.57 #-5.68 0STD - -8.57 1STD
+      VISUALIZE_RPN_UNKNOWN: True
     RCNN:
       CLS_LOSS: "ce"
   DATASETS:

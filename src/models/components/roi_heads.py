@@ -3,6 +3,7 @@ import logging
 from typing import Dict, List, Optional, Tuple
 import torch
 import numpy as np
+from detectron2.data.detection_utils import convert_image_to_rgb
 
 from detectron2.modeling import ROIHeads
 from detectron2.modeling.proposal_generator.proposal_utils import add_ground_truth_to_proposals
@@ -65,6 +66,7 @@ class MyRes5ROIHeads(ROIHeads):
         bg_percentile: float = -1,
         mask_head: Optional[nn.Module] = None,
         post_train_rcnn: bool = False,
+        visualize_rpn_unknown: bool = False,
         **kwargs,
     ):
         """
@@ -95,6 +97,7 @@ class MyRes5ROIHeads(ROIHeads):
         self.post_train_rcnn = post_train_rcnn
         if self.mask_on:
             self.mask_head = mask_head
+        self.visualize_rpn_unknown = visualize_rpn_unknown
 
     @classmethod
     def from_config(cls, cfg, input_shape):
@@ -145,6 +148,7 @@ class MyRes5ROIHeads(ROIHeads):
         ret["fg_percentile"] = cfg.OURS.MODELS.RPN.FG_PERCENTILE
         ret["bg_percentile"] = cfg.OURS.MODELS.RPN.BG_PERCENTILE
         ret["post_train_rcnn"] = post_train_rcnn
+        ret["visualize_rpn_unknown"] = cfg.OURS.MODELS.RPN.VISUALIZE_RPN_UNKNOWN
         return ret
 
     @classmethod
@@ -181,7 +185,7 @@ class MyRes5ROIHeads(ROIHeads):
     def _sample_proposals(
         self, matched_idxs: torch.Tensor, matched_labels: torch.Tensor, gt_classes: torch.Tensor,
             objectness_logits: torch.Tensor
-    ) -> Tuple[torch.Tensor, torch.Tensor]:
+    ) -> Tuple[torch.Tensor, torch.Tensor, torch.Tensor]:
         """
         Based on the matching between N proposals and M groundtruth,
         sample the proposals and set their classification labels.
@@ -209,7 +213,8 @@ class MyRes5ROIHeads(ROIHeads):
                 fg_proposals = objectness_logits >= self.fg_percentile
                 bg_proposals = objectness_logits < self.fg_percentile
                 #ignore_unmatched_proposals = torch.logical_and(objectness_logits < self.fg_percentile, objectness_logits > self.bg_percentile)
-                gt_classes[torch.logical_and(unmatched_proposals, fg_proposals)] = self.num_classes + 1
+                unk_proposals = torch.logical_and(unmatched_proposals, fg_proposals)
+                gt_classes[unk_proposals] = self.num_classes + 1
                 # Label unmatched proposals (0 label from matcher) as background (label=num_classes)
                 gt_classes[torch.logical_and(unmatched_proposals, bg_proposals)] = self.num_classes
                 #gt_classes[torch.logical_and(unmatched_proposals, ignore_unmatched_proposals)] = -1
@@ -224,8 +229,10 @@ class MyRes5ROIHeads(ROIHeads):
             gt_classes, self.batch_size_per_image, self.positive_fraction, bg_label=self.num_classes
         )
 
+        unk_idxs = (unk_proposals == True).nonzero(as_tuple=True)[0]
+
         sampled_idxs = torch.cat([sampled_fg_idxs, sampled_bg_idxs], dim=0)
-        return sampled_idxs, gt_classes[sampled_idxs]
+        return sampled_idxs, gt_classes[sampled_idxs], unk_idxs
 
     @torch.no_grad()
     def label_and_sample_proposals(
@@ -269,7 +276,7 @@ class MyRes5ROIHeads(ROIHeads):
             proposals = add_ground_truth_to_proposals(targets, proposals)
 
         proposals_with_gt = []
-
+        proposals_with_unk = []
         num_fg_samples = []
         num_bg_samples = []
         for proposals_per_image, targets_per_image in zip(proposals, targets):
@@ -278,10 +285,15 @@ class MyRes5ROIHeads(ROIHeads):
                 targets_per_image.gt_boxes, proposals_per_image.proposal_boxes
             )
             matched_idxs, matched_labels = self.proposal_matcher(match_quality_matrix)
-            sampled_idxs, gt_classes = self._sample_proposals(
+            sampled_idxs, gt_classes, unk_idxs = self._sample_proposals(
                 matched_idxs, matched_labels, targets_per_image.gt_classes,
                 proposals_per_image.objectness_logits
             )
+
+            if len(unk_idxs) > 0:
+                proposals_with_unk.append(proposals_per_image[unk_idxs])
+            else:
+                proposals_with_unk.append([])
 
             # Set target attributes of the sampled proposals:
             proposals_per_image = proposals_per_image[sampled_idxs]
@@ -311,7 +323,7 @@ class MyRes5ROIHeads(ROIHeads):
         storage.put_scalar("roi_head/num_fg_samples", np.mean(num_fg_samples))
         storage.put_scalar("roi_head/num_bg_samples", np.mean(num_bg_samples))
 
-        return proposals_with_gt
+        return proposals_with_gt, proposals_with_unk
 
     def forward(
         self,
@@ -327,7 +339,7 @@ class MyRes5ROIHeads(ROIHeads):
 
         if self.training:
             assert targets
-            proposals = self.label_and_sample_proposals(proposals, targets)
+            proposals, proposals_with_unk = self.label_and_sample_proposals(proposals, targets)
         del targets
 
         proposal_boxes = [x.proposal_boxes for x in proposals]
@@ -339,7 +351,7 @@ class MyRes5ROIHeads(ROIHeads):
         if self.post_train_rcnn:
             pred_instances, _ = self.box_predictor.inference(predictions, proposals)
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
-            return pred_instances, {}
+            return pred_instances, {}, None
         elif self.training:
             del features
             losses = self.box_predictor.losses(predictions, proposals)
@@ -354,11 +366,11 @@ class MyRes5ROIHeads(ROIHeads):
                 mask_features = box_features[torch.cat(fg_selection_masks, dim=0)]
                 del box_features
                 losses.update(self.mask_head(mask_features, proposals))
-            return [], losses
+            return [], losses, proposals_with_unk
         else:
             pred_instances, _ = self.box_predictor.inference(predictions, proposals)
             pred_instances = self.forward_with_given_boxes(features, pred_instances)
-            return pred_instances, {}
+            return pred_instances, {}, None
 
     def forward_with_given_boxes(
         self, features: Dict[str, torch.Tensor], instances: List[Instances]
