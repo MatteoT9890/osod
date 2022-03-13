@@ -753,10 +753,10 @@ class MyFastRCNNOutputLayers(nn.Module):
         num_inst_per_image = [len(p) for p in proposals]
 
         if self.mode == "ours":
-            if self.use_msp:
-                probs = F.softmax(scores[:, :-1], dim=1)
-
-                ## Calculate MSP
+            if self.use_odin or self.use_energy:
+                probs = scores[:, :-1]  # impropriamente, perché dopo vengono usati sempre come scores
+            elif self.use_msp:
+                probs = F.softmax(scores[:, :-1], dim=-1)
                 msp = torch.max(probs, dim=1).values
                 probs = torch.cat((probs, msp.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
             else:
@@ -794,21 +794,48 @@ class MyFastRCNNOutputLayers(nn.Module):
         Returns:
             Same as `fast_rcnn_inference`, but for only one image.
         """
+
+        if not self.use_odin:
+            scores = scores.detach()
+
         valid_mask = torch.isfinite(boxes).all(dim=1) & torch.isfinite(scores).all(dim=1)
         if not valid_mask.all():
             boxes = boxes[valid_mask]
             scores = scores[valid_mask]
 
         ## Scores shape: N x (C + 2)
-
-        if self.mode == "ours" and self.use_msp:
-            ## In this case the anomaly score is the last column itself, we only compute the mask for removing bkg detections.
+        if self.use_msp:
+            ## The first 21 columns contains softmax probability of 20 classes + bkg.
+            ## The last column contains msp
             scores[:, -1] = 1 - scores[:, -1]
-            max_softmax = torch.max(scores, dim=1).values
-            is_unknown = scores[:, -1] == max_softmax
+            # max_softmax = torch.max(scores, dim=1).values
+            # is_unknown = scores[:, -1] == max_softmax
+            is_unknown = scores[:, -1] >= self.rejection_threshold
             not_unknown = torch.logical_not(is_unknown)
+        elif self.use_energy:
+            energy = self.temper * torch.logsumexp(scores / self.temper, dim=1)
+            energy = (energy - energy.min()) / (energy.max() - energy.min())
+            is_unknown = energy >= self.rejection_threshold
+            not_unknown = torch.logical_not(is_unknown)
+            scores = torch.cat((scores, energy.unsqueeze(dim=1)), dim=1)
+        elif self.use_odin:
+            if self.odin_pass == 0:
+                self.odin_pass = 1
+                return scores, None
+            else:
+                # scores now are perturbed
+                self.odin_pass = 0
+                scores = scores / self.temper
+                scores = scores - torch.max(scores, dim=1, keepdim=True)[0]
+                scores = F.softmax(scores, dim=-1)
 
-        elif self.mode == "ours":
+                max_scores = torch.max(scores, dim=1).values
+                scores = torch.cat((scores, max_scores.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
+                scores[:, -1] = 1 - scores[:, -1]
+                is_unknown = scores[:, -1] >= self.rejection_threshold
+                not_unknown = torch.logical_not(is_unknown)
+
+        elif self.mode == "ours" and not any([self.use_msp, self.use_energy, self.use_odin]):
             max_activation = torch.max(scores, dim=1).values
             is_unknown = torch.zeros(len(scores)).bool().to(self.device)
 
@@ -834,36 +861,6 @@ class MyFastRCNNOutputLayers(nn.Module):
                 scores = F.softmax(scores, dim=1)
             else:
                 scores = torch.sigmoid(scores)
-        elif self.mode == "baseline" and self.use_msp:
-            ## The first 21 columns contains softmax probability of 20 classes + bkg.
-            ## The last column contains msp
-            scores[:, -1] = 1 - scores[:, -1]
-            max_softmax = torch.max(scores, dim=1).values
-            is_unknown = scores[:, -1] == max_softmax
-            not_unknown = torch.logical_not(is_unknown)
-        elif self.mode == "baseline" and self.use_energy:
-            energy = self.temper * torch.logsumexp(scores / self.temper, dim=1)
-            energy = (energy - energy.min()) / (energy.max() - energy.min())
-            is_unknown = energy >= self.rejection_threshold
-            not_unknown = torch.logical_not(is_unknown)
-            scores = torch.cat((scores, energy.unsqueeze(dim=1)), dim=1)
-        elif self.mode == "baseline" and self.use_odin:
-            if self.odin_pass == 0:
-                self.odin_pass = 1
-                return scores, None
-            else:
-                # scores now are perturbed
-                self.odin_pass = 0
-                scores = scores / self.temper
-                scores = scores - torch.max(scores, dim=1, keepdim=True)[0]
-                scores = F.softmax(scores, dim=-1)
-
-                max_scores = torch.max(scores, dim=1).values
-                scores = torch.cat((scores, max_scores.unsqueeze(dim=1)), dim=1)  # R x ( C + 2 )
-                scores[:, -1] = 1 - scores[:, -1]
-                is_unknown = scores[:, -1] == max_scores
-                not_unknown = torch.logical_not(is_unknown)
-
         elif self.mode == "baseline" and not any([self.use_msp, self.use_energy, self.use_odin]):
             ## The first 21 columns contains softmax probability of 20 classes + bkg.
             ## The last column contains msp
@@ -913,6 +910,7 @@ class MyFastRCNNOutputLayers(nn.Module):
         pred_classes = filter_inds[:, 1]
         pred_classes[pred_classes == self.num_classes] = self.num_classes + 1
         result.pred_classes = pred_classes
+
         return result, filter_inds[:, 0]
 
     def fast_rcnn_inference(

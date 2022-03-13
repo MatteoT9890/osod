@@ -5,14 +5,14 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/final_msp_bkgscores_notopk_noduplicates_allpred_v2/test_open" # msp_nobkgscores_topk_azzera_all_pred_condiz_girata
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/final_msp_th0.4_fixed_wi/test_open" # msp_nobkgscores_topk_azzera_all_pred_condiz_girata
 #DATALOADER:
 #  NUM_WORKERS: 0
 OURS:
 #  DEBUG: True
   MODE: "baseline"
   USE_MSP: True
-  REJECTION_THRESHOLD: 0.5
+  REJECTION_THRESHOLD: 0.4
   BKG_MASK: False
   MODELS:
     RPN:

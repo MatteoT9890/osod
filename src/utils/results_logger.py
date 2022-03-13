@@ -117,6 +117,11 @@ class Logger:
             data = pickle.load(f)
             wi = np.asarray(list(data.values())).mean()
 
+        # wi no simplified
+        with open(self.logdir+'/wi_no_simplified.pkl', 'rb') as f:
+            data = pickle.load(f)
+            wi_no_simplified = np.asarray(list(data.values())).mean()
+
         # wi_adjusted
         with open(self.logdir+'/wi_adjusted.pkl', 'rb') as f:
             data = pickle.load(f)
@@ -131,10 +136,9 @@ class Logger:
 
         # cumulative
         text = ''+f"<tr><td>U-RECALL</td><td>U-PRECISION</td><td>U-F1</td><td>UD-R</td>" \
-                  f"<td>UD-P</td><td>UD-F1</td><td>WI</td><td>WI-ADJUSTED</td><td>A-OSE</td></tr>"
+                  f"<td>UD-P</td><td>UD-F1</td><td>WI</td><td>WI_NO_SIMPLIFIED</td><td>WI-ADJUSTED</td><td>A-OSE</td></tr>"
         text += f"<tr><td>{urec*100}</td>" + f"<td>{upre*100}</td>" + f"<td>{uf1*100}</td>" + f"<td>{udr*100}</td>" + \
-                f"<td>{udp*100}</td>" + f"<td>{udf1*100}</td>" + f"<td>{wi*100}</td>" + f"<td>{wi_adjusted*100}</td>" + \
+                f"<td>{udp*100}</td>" + f"<td>{udf1*100}</td>" + f"<td>{wi*100}</td>" + f"<td>{wi_no_simplified*100}</td>" + f"<td>{wi_adjusted*100}</td>" + \
                 f"<td>{a_ose}</td></tr>"
         text += "</table>"
         self.writer.add_text('CUMULATIVE', text, 0)
-

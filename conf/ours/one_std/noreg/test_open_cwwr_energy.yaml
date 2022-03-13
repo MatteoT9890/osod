@@ -5,12 +5,13 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/ours/one_std/noreg/msp_0.4" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/ours/one_std/noreg/energy_0.4" # path to store the result
 OURS:
   MODE: "ours"
   UNKNOWN_REGRESSION: False
   REJECTION_THRESHOLD: 0.4
-  USE_MSP: True
+  USE_ENERGY: True
+  TEMPER: 1.
   MODELS:
     RPN:
       WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step3/train/model_final.pth"

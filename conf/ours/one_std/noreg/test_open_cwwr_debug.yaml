@@ -5,21 +5,23 @@ MODEL:
   ROI_HEADS:
     NUM_CLASSES: 20
     NAME: MyRes5ROIHeads
-OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/new_odin_t1_1-max_th0.4_fixed_wi/test_open" # path to store the result
+OUTPUT_DIR: "/home/mtarantino/thesis/oursowod/out/new/prova/one_std/noreg/test_open_msp" # path to store the result
 #DATALOADER:
 #  NUM_WORKERS: 0
 OURS:
-  # DEBUG: True
-  MODE: "baseline"
+  DEBUG: True
+  MODE: "ours"
+  UNKNOWN_REGRESSION: False
   USE_ODIN: True
   REJECTION_THRESHOLD: 0.4
-  BKG_MASK: False
   TEMPER: 1.
   MODELS:
     RPN:
-      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step3/train/model_final.pth"
+      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step3/train/model_final.pth"
+      FG_PERCENTILE: 4.54 #2.68 0STD - 4.54 1STD
+      BG_PERCENTILE: -8.57 #-5.68 0STD - -8.57 1STD
     RCNN:
-      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step4/train/model_final.pth"
+      WEIGHTS: "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step4/train/model_final.pth"
   TEST_DATASETS_REGISTERED_NAMES: ("VOC2007_all", "COCO2017")
   TEST_DATASETS_NAMES: ("VOC2007","COCO2017")
   TEST_DATASETS:
@@ -37,5 +39,5 @@ OURS:
         SPLIT: "train"
   WRITERS:
     PERIOD: 20
-  CHECKPOINT_DIR_RCNN : "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step4/train" # path to store the checkpoint
-  CHECKPOINT_DIR_RPN: "/home/mtarantino/thesis/oursowod/checkpoint/baseline/step3/train"
+  CHECKPOINT_DIR_RCNN : "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step4/train" # path to store the checkpoint
+  CHECKPOINT_DIR_RPN: "/home/mtarantino/thesis/oursowod/checkpoint/ours/one_std/noreg/step3/train"
